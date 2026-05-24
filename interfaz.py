@@ -31,19 +31,27 @@ class Interfaz:
         self.pantalla = pygame.display.set_mode((self.ancho_ventana, self.alto_ventana))
         pygame.display.set_caption("Simulador de Rescate IA - Avanzado")
         
-        self.fuente_grande = pygame.font.SysFont("Segoe UI", 24, bold=True)
-        self.fuente_media = pygame.font.SysFont("Segoe UI", 18, bold=True)
-        self.fuente_pequena = pygame.font.SysFont("Consolas", 14)
+        try:
+            self.fuente_grande = pygame.font.Font("assets/font.otf", 24)
+            self.fuente_media = pygame.font.Font("assets/font.otf", 18)
+            self.fuente_pequena = pygame.font.Font("assets/font.otf", 14)
+        except Exception:
+            self.fuente_grande = pygame.font.SysFont("Segoe UI", 24, bold=True)
+            self.fuente_media = pygame.font.SysFont("Segoe UI", 18, bold=True)
+            self.fuente_pequena = pygame.font.SysFont("Consolas", 14)
+        
         self.mensajes_log = []
         
         # Botones de Acción (UI)
         self.botones_ui = {
-            'A_STAR': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 450, 150, 35),
-            'BFS': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 450, 150, 35),
-            'TRAIN_Q': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 495, 150, 35),
-            'EXEC_Q': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 495, 150, 35),
-            'AUTO_GEN': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 550, 310, 40),
-            'REINICIAR': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 600, 310, 40)
+            'A_STAR': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 410, 150, 35),
+            'BFS': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 410, 150, 35),
+            'TRAIN_Q': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 455, 150, 35),
+            'EXEC_Q': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 455, 150, 35),
+            'AUTO_GEN': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 510, 310, 40),
+            'REINICIAR': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 560, 310, 40),
+            'VOL_DOWN': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 610, 150, 35),
+            'VOL_UP': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 610, 150, 35)
         }
         
         # Cargar sprite de la llama animada
@@ -193,7 +201,7 @@ class Interfaz:
         ancho_barra_actual = int((agente.energia_actual / agente.energia_maxima) * ancho_barra_max)
         color_barra = (0, 255, 100) if agente.energia_actual > 30 else (255, 50, 50)
         
-        txt_energia = self.fuente_media.render("ENERGÍA:", True, COLOR_TEXTO)
+        txt_energia = self.fuente_media.render("ENERGIA:", True, COLOR_TEXTO)
         self.pantalla.blit(txt_energia, (20, 20))
         
         pygame.draw.rect(self.pantalla, (50, 50, 50), (110, 20, ancho_barra_max, 20))
@@ -234,15 +242,19 @@ class Interfaz:
             'TRAIN_Q': (180, 80, 80),
             'EXEC_Q': (200, 100, 100),
             'AUTO_GEN': (100, 160, 100),
-            'REINICIAR': (80, 80, 80)
+            'REINICIAR': (80, 80, 80),
+            'VOL_DOWN': (60, 80, 100),
+            'VOL_UP': (60, 80, 100)
         }
         textos_btn = {
             'A_STAR': "Utilidad (A*)",
-            'BFS': "Búsqueda (BFS)",
+            'BFS': "Busqueda (BFS)",
             'TRAIN_Q': "Entrenar Q",
             'EXEC_Q': "Ejecutar Q",
             'AUTO_GEN': "Generar Mapa Aleatorio",
-            'REINICIAR': "Reiniciar Juego"
+            'REINICIAR': "Reiniciar Juego",
+            'VOL_DOWN': "Volumen -",
+            'VOL_UP': "Volumen +"
         }
         
         for key, rect in self.botones_ui.items():
@@ -303,7 +315,7 @@ class Interfaz:
             s.fill((255,0,0))
             self.pantalla.blit(s, (0, self.alto_hud))
             
-            txt_go = self.fuente_grande.render("¡AGENTE SIN ENERGÍA!", True, (255, 255, 255))
+            txt_go = self.fuente_grande.render("¡AGENTE SIN ENERGIA!", True, (255, 255, 255))
             rect_go = txt_go.get_rect(center=(self.ancho_mapa//2, self.alto_hud + self.alto_mapa//2))
             self.pantalla.blit(txt_go, rect_go)
             

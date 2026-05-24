@@ -13,7 +13,7 @@ class Agente:
         self.cargando_humano = False # Nueva variable para la Fase 6
 
     def mover_a(self, fila, columna, entorno):
-        """Mueve al agente a una nueva coordenada, gastando energía e interactuando con el entorno."""
+        """Mueve al agente a una nueva coordenada, gastando energia e interactuando con el entorno."""
         if self.energia_actual <= 0:
             return False
             
@@ -23,19 +23,19 @@ class Agente:
         
         celda_actual = entorno.obtener_celda(self.fila, self.columna)
         
-        # Incertidumbre: Probabilidad de daño al pisar fuego
+        # Incertidumbre: Probabilidad de dano al pisar fuego
         if celda_actual == FUEGO:
             prob = random.random()
             if prob < 0.70: # 70% de quemadura grave
-                daño = 20
+                dano = 20
                 if self.log_callback:
-                    self.log_callback("¡Aaaah! Fuego grave (-20 energía)")
+                    self.log_callback("¡Aaaah! Fuego grave (-20 energia)")
             else: # 30% de quemadura leve
-                daño = 5
+                dano = 5
                 if self.log_callback:
-                    self.log_callback("¡Uf! Fuego leve (-5 energía)")
+                    self.log_callback("¡Uf! Fuego leve (-5 energia)")
                     
-            self.energia_actual = max(0, self.energia_actual - daño)
+            self.energia_actual = max(0, self.energia_actual - dano)
             
         # Recargar en estación y dejar al humano a salvo
         elif celda_actual == ESTACION:
@@ -47,7 +47,7 @@ class Agente:
                     self.log_callback(f"¡Humano a salvo en el Hospital! (Total: {self.humanos_rescatados})")
             else:
                 if self.log_callback:
-                    self.log_callback("¡Energía recargada al 100% en la Base!")
+                    self.log_callback("¡Energia recargada al 100% en la Base!")
             # Decisión: ¿Consumir estación o no? Por ahora, no la consumiremos para que sirva de hospital permanente
             # entorno.agregar_celda(self.fila, self.columna, 0)
             
@@ -64,11 +64,11 @@ class Agente:
                     
         # Enemigos
         elif celda_actual in [RATA, DUENDE]:
-            daño = 50
+            dano = 50
             if self.log_callback:
                 enemigo_str = "Rata" if celda_actual == RATA else "Duende"
-                self.log_callback(f"¡Ataque de {enemigo_str}! (-{daño} energía)")
-            self.energia_actual = max(0, self.energia_actual - daño)
+                self.log_callback(f"¡Ataque de {enemigo_str}! (-{dano} energia)")
+            self.energia_actual = max(0, self.energia_actual - dano)
             entorno.agregar_celda(self.fila, self.columna, 0) # El enemigo muere al chocar
             
         return True
@@ -85,7 +85,7 @@ class Agente:
         return False
 
     def recargar_energia(self):
-        """Restaura la energía al máximo."""
+        """Restaura la energia al máximo."""
         self.energia_actual = self.energia_maxima
 
     def rescatar_humano(self):

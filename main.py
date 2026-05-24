@@ -86,8 +86,11 @@ def main():
     ESTADO_INTRO = 0
     ESTADO_MENU = 1
     ESTADO_JUEGO = 2
+    ESTADO_PAUSA = 3
     
     estado_actual = ESTADO_INTRO
+    opcion_menu_seleccionada = 0
+    opcion_pausa_seleccionada = 0
     
     # Variables de intro
     intro_alpha_1 = 0
@@ -96,23 +99,8 @@ def main():
     intro_tiempo_inicio = pygame.time.get_ticks()
     
     try:
-        img_jose_orig = pygame.image.load("assets/Jose_Pablo.png").convert_alpha()
-        img_jose = pygame.transform.scale(img_jose_orig, (150, 200))
-        img_jose_menu = pygame.transform.scale(img_jose_orig, (80, 110))
-        
-        img_sebas_orig = pygame.image.load("assets/Sebastian.png").convert_alpha()
-        img_sebas = pygame.transform.scale(img_sebas_orig, (150, 200))
-        img_sebas_menu = pygame.transform.scale(img_sebas_orig, (80, 110))
-    except Exception as e:
-        print("Error cargando fotos de creadores:", e)
-        img_jose = None
-        img_sebas = None
-        img_jose_menu = None
-        img_sebas_menu = None
-        
-    try:
         pygame.mixer.music.load("assets/intro.opus")
-        pygame.mixer.music.set_volume(0.6) # Volumen inicial 60%
+        pygame.mixer.music.set_volume(0.2)
         pygame.mixer.music.play(-1) # Loop infinito
     except Exception as e:
         print("No se pudo cargar musica de intro:", e)
@@ -129,7 +117,33 @@ def main():
                     estado_actual = ESTADO_MENU
             
             elif estado_actual == ESTADO_MENU:
-                if evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
+                if evento.type == pygame.KEYDOWN:
+                    if evento.key in [pygame.K_DOWN, pygame.K_TAB]:
+                        opcion_menu_seleccionada = (opcion_menu_seleccionada + 1) % 3
+                    elif evento.key == pygame.K_UP:
+                        opcion_menu_seleccionada = (opcion_menu_seleccionada - 1) % 3
+                    elif evento.key == pygame.K_RETURN:
+                        if opcion_menu_seleccionada == 0: # NUEVA SIMULACION
+                            estado_actual = ESTADO_JUEGO
+                            try:
+                                pygame.mixer.music.load("assets/juego.opus")
+                                pygame.mixer.music.set_volume(0.2)
+                                pygame.mixer.music.play(-1)
+                            except Exception as e:
+                                pass
+                        elif opcion_menu_seleccionada == 1: # MAPA ALEATORIO Y JUGAR
+                            generar_mapa_aleatorio(entorno, interfaz)
+                            estado_actual = ESTADO_JUEGO
+                            try:
+                                pygame.mixer.music.load("assets/juego.opus")
+                                pygame.mixer.music.set_volume(0.2)
+                                pygame.mixer.music.play(-1)
+                            except Exception as e:
+                                pass
+                        elif opcion_menu_seleccionada == 2: # SALIR
+                            ejecutando = False
+                            
+                elif evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
                     y_opcion = 250
                     for i, opcion in enumerate(["NUEVA SIMULACION", "GENERAR MAPA ALEATORIO", "SALIR"]):
                         rect_hover = pygame.Rect(50, y_opcion - 5, 400, 40)
@@ -138,23 +152,41 @@ def main():
                                 estado_actual = ESTADO_JUEGO
                                 try:
                                     pygame.mixer.music.load("assets/juego.opus")
-                                    pygame.mixer.music.set_volume(pygame.mixer.music.get_volume()) # Mantener el volumen actual
+                                    pygame.mixer.music.set_volume(0.2)
                                     pygame.mixer.music.play(-1) # Loop infinito
                                 except Exception as e:
-                                    print("No se pudo cargar musica de juego:", e)
+                                    pass
                             elif i == 1:
                                 generar_mapa_aleatorio(entorno, interfaz)
+                                estado_actual = ESTADO_JUEGO
+                                try:
+                                    pygame.mixer.music.load("assets/juego.opus")
+                                    pygame.mixer.music.set_volume(0.2)
+                                    pygame.mixer.music.play(-1)
+                                except Exception as e:
+                                    pass
                             elif i == 2:
                                 ejecutando = False
                         y_opcion += 60
                             
             elif estado_actual == ESTADO_JUEGO:
-                if evento.type == pygame.MOUSEBUTTONDOWN:
+                if evento.type == pygame.KEYDOWN and evento.key == pygame.K_ESCAPE:
+                    estado_actual = ESTADO_PAUSA
+                elif evento.type == pygame.MOUSEBUTTONDOWN:
                     if evento.button == 1: # Clic izquierdo
                         accion = interfaz.procesar_clic(evento.pos)
                         
                         if accion == 'A_STAR':
                             interfaz.log(f"Energia: {agente.energia_actual}%. Pensando...")
+                            
+                            # COMPARATIVA A* vs BFS para los requerimientos
+                            humanos_test = entorno.obtener_posiciones_tipo(HUMANO)
+                            if humanos_test:
+                                h_test = humanos_test[0]
+                                _, n_astar, t_astar = Busqueda.a_estrella(entorno, (agente.fila, agente.columna), h_test)
+                                _, n_bfs, t_bfs = Busqueda.bfs(entorno, (agente.fila, agente.columna), h_test)
+                                interfaz.log(f"COMP: A*({n_astar} nodos, {t_astar}s) vs BFS({n_bfs} nodos, {t_bfs}s)")
+
                             mejor_ruta, mejor_objetivo = TomaDeDecision.decidir_mejor_accion(agente, entorno, interfaz)
                             if mejor_ruta:
                                 agente.establecer_ruta(mejor_ruta)
@@ -224,6 +256,46 @@ def main():
                 elif evento.type == pygame.MOUSEMOTION:
                     if pygame.mouse.get_pressed()[0]:
                         interfaz.procesar_clic(evento.pos)
+                        
+            elif estado_actual == ESTADO_PAUSA:
+                if evento.type == pygame.KEYDOWN:
+                    if evento.key == pygame.K_ESCAPE:
+                        estado_actual = ESTADO_JUEGO
+                    elif evento.key == pygame.K_UP:
+                        opcion_pausa_seleccionada = (opcion_pausa_seleccionada - 1) % 3
+                    elif evento.key in [pygame.K_DOWN, pygame.K_TAB]:
+                        opcion_pausa_seleccionada = (opcion_pausa_seleccionada + 1) % 3
+                    elif evento.key == pygame.K_RETURN:
+                        if opcion_pausa_seleccionada == 0: # REANUDAR
+                            estado_actual = ESTADO_JUEGO
+                        elif opcion_pausa_seleccionada == 1: # ABANDONAR PARTIDA
+                            estado_actual = ESTADO_MENU
+                            opcion_menu_seleccionada = 0
+                            try:
+                                pygame.mixer.music.load("assets/intro.opus")
+                                pygame.mixer.music.set_volume(0.2)
+                                pygame.mixer.music.play(-1)
+                            except: pass
+                        elif opcion_pausa_seleccionada == 2: # SALIR
+                            ejecutando = False
+                elif evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
+                    y_opcion = 250
+                    for i, opcion in enumerate(["REANUDAR", "ABANDONAR PARTIDA", "SALIR"]):
+                        rect_hover = pygame.Rect(50, y_opcion - 5, 400, 40)
+                        if rect_hover.collidepoint(evento.pos):
+                            if i == 0:
+                                estado_actual = ESTADO_JUEGO
+                            elif i == 1:
+                                estado_actual = ESTADO_MENU
+                                opcion_menu_seleccionada = 0
+                                try:
+                                    pygame.mixer.music.load("assets/intro.opus")
+                                    pygame.mixer.music.set_volume(0.2)
+                                    pygame.mixer.music.play(-1)
+                                except: pass
+                            elif i == 2:
+                                ejecutando = False
+                        y_opcion += 60
                     
         if estado_actual == ESTADO_INTRO:
             interfaz.pantalla.fill((0, 0, 0))
@@ -245,17 +317,6 @@ def main():
             dt = tiempo_actual - intro_tiempo_inicio
             velocidad_fade = 4 # Más rápido para transiciones fluidas
             
-            # Máquina de estados interna para la intro (más detallada)
-            # Fase 0: Espera inicial (1s)
-            # Fase 1: Fade-in texto 1
-            # Fase 2: Hold texto 1 (2.5s)
-            # Fase 3: Fade-out texto 1
-            # Fase 4: Espera en negro (0.5s)
-            # Fase 5: Fade-in texto 2
-            # Fase 6: Hold texto 2 (2.5s)
-            # Fase 7: Fade-out texto 2
-            # Fase 8: Fin -> MENU
-            
             if intro_fase == 0:
                 if dt > 1000:
                     intro_fase = 1
@@ -266,7 +327,7 @@ def main():
                     intro_fase = 2
                     intro_tiempo_inicio = tiempo_actual
             elif intro_fase == 2:
-                if dt > 4000: # Aumentado de 2500 a 4000
+                if dt > 2500:
                     intro_fase = 3
                     intro_tiempo_inicio = tiempo_actual
             elif intro_fase == 3:
@@ -284,7 +345,7 @@ def main():
                     intro_fase = 6
                     intro_tiempo_inicio = tiempo_actual
             elif intro_fase == 6:
-                if dt > 6000: # Aumentado de 4000 a 6000 para apreciar mejor las fotos
+                if dt > 2500:
                     intro_fase = 7
                     intro_tiempo_inicio = tiempo_actual
             elif intro_fase == 7:
@@ -298,29 +359,13 @@ def main():
                 rect = texto.get_rect(center=(centro_x, centro_y))
                 interfaz.pantalla.blit(texto, rect)
             
-            # Dibujar textos con secuencia
+            # Dibujar textos
             if intro_fase in [1, 2, 3]:
-                alpha_t1 = intro_alpha_1
-                alpha_t1_sub = max(0, min(255, intro_alpha_1 * 2 - 255)) # Aparece desfasado
-                
-                dibujar_texto_fade(texto1, interfaz.ancho_ventana//2, interfaz.alto_ventana//2 - 20, alpha_t1)
-                dibujar_texto_fade(texto1_sub, interfaz.ancho_ventana//2, interfaz.alto_ventana//2 + 20, alpha_t1_sub)
+                dibujar_texto_fade(texto1, interfaz.ancho_ventana//2, interfaz.alto_ventana//2 - 20, intro_alpha_1)
+                dibujar_texto_fade(texto1_sub, interfaz.ancho_ventana//2, interfaz.alto_ventana//2 + 20, intro_alpha_1)
             elif intro_fase in [5, 6, 7]:
-                alpha_t2 = intro_alpha_2
-                alpha_fotos = max(0, min(255, intro_alpha_2 * 2 - 128))
-                alpha_t3 = max(0, min(255, intro_alpha_2 * 2 - 255))
-                
-                dibujar_texto_fade(texto2, interfaz.ancho_ventana//2, interfaz.alto_ventana//2 - 150, alpha_t2)
-                
-                if img_jose and img_sebas:
-                    img_jose.set_alpha(intro_alpha_2)
-                    img_sebas.set_alpha(intro_alpha_2)
-                    
-                    # Dibujar fotos centradas (Jose a la izquierda, Sebas a la derecha)
-                    interfaz.pantalla.blit(img_jose, (interfaz.ancho_ventana//2 - 180, interfaz.alto_ventana//2 - 100))
-                    interfaz.pantalla.blit(img_sebas, (interfaz.ancho_ventana//2 + 30, interfaz.alto_ventana//2 - 100))
-                
-                dibujar_texto_fade(texto3, interfaz.ancho_ventana//2, interfaz.alto_ventana//2 + 130, intro_alpha_2)
+                dibujar_texto_fade(texto2, interfaz.ancho_ventana//2, interfaz.alto_ventana//2 - 20, intro_alpha_2)
+                dibujar_texto_fade(texto3, interfaz.ancho_ventana//2, interfaz.alto_ventana//2 + 30, intro_alpha_2)
                 
             # Loading icon (Rotating Arc - Estilo Omega)
             angulo = (tiempo_actual // 5) % 360
@@ -369,6 +414,9 @@ def main():
                 rects_opciones.append(rect_hover)
                 
                 if rect_hover.collidepoint(pos_raton):
+                    opcion_menu_seleccionada = i
+                
+                if i == opcion_menu_seleccionada:
                     # Dibujar barra de highlight sutil
                     s = pygame.Surface((400, 40))
                     s.set_alpha(50)
@@ -383,19 +431,10 @@ def main():
                 interfaz.pantalla.blit(txt_opcion, (60, y_opcion))
                 y_opcion += 60
                 
-            # Dibujar fotos en la esquina inferior derecha del menu (sobre los nombres)
-            if img_jose_menu and img_sebas_menu:
-                interfaz.pantalla.blit(img_jose_menu, (interfaz.ancho_ventana - 190, interfaz.alto_ventana - 140))
-                interfaz.pantalla.blit(img_sebas_menu, (interfaz.ancho_ventana - 100, interfaz.alto_ventana - 140))
-                
             # Créditos en la esquina inferior derecha
             txt_creditos = fuente_creditos.render("Jose Pablo Illescas y Sebastian Holweger", True, (100, 100, 100))
             rect_cred = txt_creditos.get_rect(bottomright=(interfaz.ancho_ventana - 20, interfaz.alto_ventana - 20))
             interfaz.pantalla.blit(txt_creditos, rect_cred)
-            
-            # Manejar clics en el menú en el loop de eventos anterior... wait,
-            # we need to handle clicks in the event loop above. 
-            # I will add the logic to check clicks in the event loop.
             
             pygame.display.flip()
             
@@ -413,23 +452,98 @@ def main():
             en_destino = (agente_visual_x == destino_x and agente_visual_y == destino_y)
     
             # Mover al agente si tiene una ruta y ya llegó a su casilla visual
-            if en_destino and agente.ruta_actual:
-                siguiente = agente.ruta_actual[0]
-                riesgo = MotorInferencia.inferir_riesgo(entorno, siguiente[0], siguiente[1])
-                if riesgo > 0:
-                    interfaz.log(f"Logica: Riesgo de fuego al frente (Nivel {riesgo})")
+            if getattr(interfaz, 'simulacion_activa', False):
+                if en_destino and agente.ruta_actual:
+                    siguiente = agente.ruta_actual[0]
                     
-                paso_exitoso = agente.avanzar_ruta(entorno)
-                if not paso_exitoso:
-                     interfaz.log("¡Agente sin energía! Debe ser rescatado.")
-                     agente.ruta_actual = [] # Cancelar ruta
-                     
-            # Mover enemigos
-            if tiempo_actual - tiempo_ultimo_enemigo > retraso_enemigos:
-                entorno.actualizar_enemigos()
-                tiempo_ultimo_enemigo = tiempo_actual
+                    # REPLANNING: Verificar si hay un enemigo bloqueando el camino
+                    celda_siguiente = entorno.obtener_celda(siguiente[0], siguiente[1])
+                    if celda_siguiente in [5, 6]: # RATA o DUENDE
+                        interfaz.log("¡Enemigo detectado! Recalculando ruta...")
+                        agente.ruta_actual = []
+                        mejor_ruta, mejor_objetivo = TomaDeDecision.decidir_mejor_accion(agente, entorno, interfaz)
+                        if mejor_ruta:
+                            agente.establecer_ruta(mejor_ruta)
+                        continue # Salta este frame para pensar
+                    
+                    riesgo = MotorInferencia.inferir_riesgo(entorno, siguiente[0], siguiente[1])
+                    if riesgo > 0:
+                        interfaz.log(f"Logica: Riesgo de fuego al frente (Nivel {riesgo})")
+                        
+                    paso_exitoso = agente.avanzar_ruta(entorno)
+                    if not paso_exitoso:
+                         interfaz.log("¡Agente sin energía! Debe ser rescatado.")
+                         agente.ruta_actual = [] # Cancelar ruta
+                         estado_actual = ESTADO_POPUP
+                         popup_titulo = "GAME OVER"
+                         popup_mensaje = "¡El agente se ha quedado sin energia!"
+                         
+                # Mover enemigos
+                if tiempo_actual - tiempo_ultimo_enemigo > retraso_enemigos:
+                    entorno.actualizar_enemigos()
+                    tiempo_ultimo_enemigo = tiempo_actual
+                    
+                # Chequear victoria
+                humanos_restantes = len(entorno.obtener_posiciones_tipo(HUMANO))
+                if humanos_restantes == 0 and not agente.cargando_humano and agente.humanos_rescatados > 0:
+                    estado_actual = ESTADO_POPUP
+                    popup_titulo = "¡VICTORIA!"
+                    popup_mensaje = f"Has rescatado a {agente.humanos_rescatados} humanos exitosamente."
                         
             interfaz.dibujar_todo(agente, agente_visual_x, agente_visual_y)
+            
+        elif estado_actual == ESTADO_PAUSA:
+            interfaz.pantalla.fill((10, 12, 15))
+            try:
+                fuente_titulo = pygame.font.Font("assets/font.otf", 70)
+                fuente_menu = pygame.font.Font("assets/font.otf", 30)
+            except Exception:
+                fuente_titulo = pygame.font.SysFont("Segoe UI", 60, bold=True)
+                fuente_menu = pygame.font.SysFont("Segoe UI", 30)
+                
+            txt_titulo_1 = fuente_titulo.render("PAUSA", True, (220, 220, 220))
+            interfaz.pantalla.blit(txt_titulo_1, (50, 50))
+            
+            opciones = ["REANUDAR", "ABANDONAR PARTIDA", "SALIR"]
+            y_opcion = 250
+            pos_raton = pygame.mouse.get_pos()
+            
+            for i, opcion in enumerate(opciones):
+                rect_hover = pygame.Rect(50, y_opcion - 5, 400, 40)
+                if rect_hover.collidepoint(pos_raton):
+                    opcion_pausa_seleccionada = i
+                
+                if i == opcion_pausa_seleccionada:
+                    s = pygame.Surface((400, 40))
+                    s.set_alpha(50)
+                    s.fill((255, 255, 255))
+                    interfaz.pantalla.blit(s, (50, y_opcion - 5))
+                    color_texto = (255, 255, 255)
+                else:
+                    color_texto = (150, 150, 150)
+                    
+                txt_opcion = fuente_menu.render(opcion, True, color_texto)
+                interfaz.pantalla.blit(txt_opcion, (60, y_opcion))
+                y_opcion += 60
+                
+            pygame.display.flip()
+            
+        elif estado_actual == ESTADO_POPUP:
+            interfaz.dibujar_todo(agente, agente_visual_x, agente_visual_y)
+            interfaz.dibujar_popup(popup_titulo, popup_mensaje)
+            pygame.display.flip()
+            
+            for ev in pygame.event.get():
+                if ev.type == pygame.QUIT:
+                    ejecutando = False
+                elif ev.type == pygame.KEYDOWN and ev.key in [pygame.K_RETURN, pygame.K_ESCAPE]:
+                    estado_actual = ESTADO_JUEGO
+                    if popup_titulo in ["GAME OVER", "¡VICTORIA!"]:
+                        interfaz.simulacion_activa = False
+                elif ev.type == pygame.MOUSEBUTTONDOWN:
+                    estado_actual = ESTADO_JUEGO
+                    if popup_titulo in ["GAME OVER", "¡VICTORIA!"]:
+                        interfaz.simulacion_activa = False
         
         reloj.tick(60)
 

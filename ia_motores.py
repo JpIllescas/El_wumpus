@@ -4,6 +4,21 @@ import random
 from entorno import MURO, FUEGO, HUMANO, ESTACION, RATA, DUENDE
 import time
 
+class BaseConocimiento:
+    def __init__(self, filas, columnas):
+        self.filas = filas
+        self.columnas = columnas
+        # -1 = Desconocido, resto = Valores del entorno
+        self.mapa_conocido = [[-1 for _ in range(columnas)] for _ in range(filas)]
+        
+    def percibir_entorno(self, entorno, fila, col):
+        """El agente percibe la celda actual y las adyacentes."""
+        direcciones = [(0, 0), (-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
+        for df, dc in direcciones:
+            nf, nc = int(fila) + df, int(col) + dc
+            if 0 <= nf < self.filas and 0 <= nc < self.columnas:
+                self.mapa_conocido[nf][nc] = entorno.obtener_celda(nf, nc)
+
 class MotorInferencia:
     base_conocimiento = set()
 
@@ -277,6 +292,8 @@ class QLearning:
                         proximo_estado = estado
                     elif celda == FUEGO:
                         recompensa = -50
+                    elif celda in [RATA, DUENDE]:
+                        recompensa = -500
                     elif proximo_estado == objetivo:
                         recompensa = 1000
                     else:

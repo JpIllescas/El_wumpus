@@ -18,6 +18,15 @@ class BaseConocimiento:
             nf, nc = int(fila) + df, int(col) + dc
             if 0 <= nf < self.filas and 0 <= nc < self.columnas:
                 self.mapa_conocido[nf][nc] = entorno.obtener_celda(nf, nc)
+                
+    def obtener_celda(self, fila, col):
+        """Devuelve el contenido conocido de la celda o asume VACIO si es desconocido."""
+        if 0 <= fila < self.filas and 0 <= col < self.columnas:
+            valor = self.mapa_conocido[fila][col]
+            if valor == -1:
+                return 0 # 0 es VACIO. Asumimos vacío hasta no descubrir lo contrario.
+            return valor
+        return MURO # Fuera del mapa cuenta como muro
 
 class MotorInferencia:
     base_conocimiento = set()
@@ -59,6 +68,11 @@ class TomaDeDecision:
             
         distancia = len(ruta)
         costo_energia = distancia
+        
+        # Supervivencia estricta: si va por un humano pero no le alcanza la energia 
+        # para ir y tener un margen de 15 pasos para buscar el hospital despues, aborta.
+        if tipo_objetivo == HUMANO and agente.energia_actual < distancia + 15:
+            return -9999 # Demasiado riesgo de morir, buscar estación o rendirse
         
         # Recompensas base
         recompensa = 0
@@ -126,9 +140,9 @@ class TomaDeDecision:
         # 2. Búsqueda pesada (A* o BFS) solo en los mejores candidatos
         for _, coord_int, tipo in top_objetivos:
             if algoritmo == "A_STAR":
-                ruta, _, _ = Busqueda.a_estrella(entorno, inicio, coord_int)
+                ruta, _, _ = Busqueda.a_estrella(agente.base_conocimiento, inicio, coord_int)
             else:
-                ruta, _, _ = Busqueda.bfs(entorno, inicio, coord_int)
+                ruta, _, _ = Busqueda.bfs(agente.base_conocimiento, inicio, coord_int)
                 
             utilidad = TomaDeDecision.funcion_utilidad(agente, coord_int, tipo, ruta)
             

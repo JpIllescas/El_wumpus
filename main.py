@@ -219,8 +219,8 @@ def main():
                             humanos_test = entorno.obtener_posiciones_tipo(HUMANO)
                             if humanos_test:
                                 h_test = humanos_test[0]
-                                _, n_astar, t_astar = Busqueda.a_estrella(entorno, (agente.fila, agente.columna), h_test)
-                                _, n_bfs, t_bfs = Busqueda.bfs(entorno, (agente.fila, agente.columna), h_test)
+                                _, n_astar, t_astar = Busqueda.a_estrella(agente.base_conocimiento, (agente.fila, agente.columna), h_test)
+                                _, n_bfs, t_bfs = Busqueda.bfs(agente.base_conocimiento, (agente.fila, agente.columna), h_test)
                                 
                                 estado_actual = ESTADO_POPUP
                                 popup_titulo = "A* vs BFS"
@@ -522,12 +522,13 @@ def main():
                 if en_destino and agente.ruta_actual:
                     siguiente = agente.ruta_actual[0]
                     
-                    # REPLANNING: Verificar si hay un enemigo bloqueando el camino
+                    # REPLANNING: Verificar si hay un obstáculo no previsto (Muro o Enemigo) bloqueando el camino
                     celda_siguiente = entorno.obtener_celda(siguiente[0], siguiente[1])
-                    if celda_siguiente in [5, 6]: # RATA o DUENDE
-                        interfaz.log("¡Enemigo detectado! Recalculando ruta...")
+                    if celda_siguiente in [1, 5, 6]: # MURO, RATA o DUENDE
+                        interfaz.log("¡Obstáculo detectado! Recalculando ruta...")
                         agente.ruta_actual = []
-                        mejor_ruta, mejor_objetivo = TomaDeDecision.decidir_mejor_accion(agente, entorno, interfaz)
+                        # Usar el algoritmo actual (A_STAR por defecto si no sabemos cual se usó, o el último. Por simplicidad, TomaDeDecision decide)
+                        mejor_ruta, mejor_objetivo = TomaDeDecision.decidir_mejor_accion(agente, entorno, interfaz, algoritmo="A_STAR")
                         if mejor_ruta:
                             agente.establecer_ruta(mejor_ruta)
                         continue # Salta este frame para pensar

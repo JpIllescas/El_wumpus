@@ -1,5 +1,5 @@
 import random
-from entorno import FUEGO, ESTACION, HUMANO, RATA, DUENDE
+from entorno import FUEGO, ESTACION, HUMANO, RATA, DUENDE, MURO
 
 class Agente:
     def __init__(self, fila_inicial, col_inicial, energia_maxima=100):
@@ -80,7 +80,16 @@ class Agente:
     def avanzar_ruta(self, entorno):
         """Avanza un paso en la ruta actual."""
         if self.ruta_actual:
-            siguiente_paso = self.ruta_actual.pop(0)
+            siguiente_paso = self.ruta_actual[0]
+            
+            # Verificar si la ruta fue bloqueada de forma dinámica por un obstáculo
+            if entorno.obtener_celda(siguiente_paso[0], siguiente_paso[1]) == MURO:
+                if self.log_callback:
+                    self.log_callback("¡Ruta bloqueada por un muro nuevo! Recalculando...")
+                self.ruta_actual = [] # Cancelar ruta para forzar re-evaluación
+                return False
+                
+            self.ruta_actual.pop(0)
             return self.mover_a(siguiente_paso[0], siguiente_paso[1], entorno)
         return False
 

@@ -5,11 +5,13 @@ from entorno import MURO, FUEGO, HUMANO, ESTACION, RATA, DUENDE
 import time
 
 class MotorInferencia:
+    base_conocimiento = set()
+
     @staticmethod
     def inferir_riesgo(entorno, fila, col):
         """
         Lógica Proposicional:
-        Evalúa las celdas adyacentes a (fila, col).
+        Evalúa las celdas adyacentes a (fila, col) y actualiza la Base de Conocimiento.
         Reglas:
         - Si percibo FUEGO adyacente (humo), entonces hay RIESGO de quemarse cerca.
         Devuelve un nivel de riesgo (0 a 4) basado en cuántos fuegos hay alrededor.
@@ -17,9 +19,15 @@ class MotorInferencia:
         riesgo = 0
         direcciones = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
         
+        # Limpiar inferencias posicionales antiguas de peligro inminente para esta celda
+        MotorInferencia.base_conocimiento = {h for h in MotorInferencia.base_conocimiento if not h.startswith(f"PeligroInminente_({fila},{col})")}
+        
         for df, dc in direcciones:
             n_fila, n_col = fila + df, col + dc
             if entorno.obtener_celda(n_fila, n_col) == FUEGO:
+                # Inferencia lógica formal: percibimos fuego, deducimos peligro
+                MotorInferencia.base_conocimiento.add(f"FuegoDetectado_({n_fila},{n_col})")
+                MotorInferencia.base_conocimiento.add(f"PeligroInminente_({fila},{col})")
                 riesgo += 1
                 
         return riesgo
@@ -78,9 +86,30 @@ class TomaDeDecision:
         
         inicio = (agente.fila, agente.columna)
         
+        # 1. Filtro rápido con distancia Manhattan
+        objetivos_filtrados = []
         for coord, tipo in objetivos:
             coord_int = (int(coord[0]), int(coord[1]))
-            # Calculamos A* asumiendo que queremos encontrar la ruta más rápida
+            distancia_estimada = Busqueda.heuristica(inicio, coord_int)
+            
+            recompensa_estimada = 0
+            if agente.cargando_humano and tipo == ESTACION:
+                recompensa_estimada = 1000
+            elif not agente.cargando_humano and tipo == HUMANO:
+                recompensa_estimada = 100
+            elif not agente.cargando_humano and tipo == ESTACION:
+                factor = (agente.energia_maxima - agente.energia_actual) / agente.energia_maxima
+                recompensa_estimada = 150 * factor
+                
+            utilidad_estimada = recompensa_estimada - distancia_estimada
+            objetivos_filtrados.append((utilidad_estimada, coord_int, tipo))
+            
+        # Ordenar de mayor a menor utilidad estimada y tomar los top 3
+        objetivos_filtrados.sort(key=lambda x: x[0], reverse=True)
+        top_objetivos = objetivos_filtrados[:3]
+        
+        # 2. Búsqueda pesada A* solo en los mejores candidatos
+        for _, coord_int, tipo in top_objetivos:
             ruta, _, _ = Busqueda.a_estrella(entorno, inicio, coord_int)
             utilidad = TomaDeDecision.funcion_utilidad(agente, coord_int, tipo, ruta)
             
@@ -262,6 +291,10 @@ class QLearning:
         return round(time.time() - inicio_tiempo, 5)
 
     def obtener_ruta(self, inicio, objetivo):
+        # Aprendizaje continuo: Entrenar en segundo plano antes de actuar
+        # Esto permite adaptarse a cambios dinámicos (muros o fuegos nuevos)
+        self.entrenar(inicio, objetivo, episodios=50)
+        
         ruta = []
         estado = inicio
         visitados = set([inicio])

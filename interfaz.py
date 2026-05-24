@@ -174,7 +174,7 @@ class Interfaz:
                     
                 # pygame.draw.rect(self.pantalla, (50, 50, 50), rect, 1) # Borde opcional
                 
-    def dibujar_agente(self, x, y):
+    def dibujar_agente(self, x, y, agente):
         # Ajustar 'y' con el alto_hud
         y_real = y + self.alto_hud
         if self.img_agente_frames:
@@ -190,27 +190,46 @@ class Interfaz:
         else:
             rect = pygame.Rect(x, y_real, self.ancho_celda, self.ancho_celda)
             pygame.draw.circle(self.pantalla, COLOR_AGENTE, rect.center, self.ancho_celda // 2 - 4)
+            
+        # Dibujar rueda de energía estilo Zelda BotW sobre el agente
+        import math
+        porcentaje_energia = agente.energia_actual / agente.energia_maxima
+        centro_rueda = (x + self.ancho_celda // 2, y_real - 10)
+        radio_rueda = 12
+        grosor_rueda = 4
+        
+        # Fondo de la rueda (negro semitransparente)
+        sup_rueda = pygame.Surface((30, 30), pygame.SRCALPHA)
+        pygame.draw.circle(sup_rueda, (0, 0, 0, 150), (15, 15), radio_rueda, grosor_rueda)
+        
+        # Arco verde de la energía restante
+        color_rueda = (50, 255, 50) if porcentaje_energia > 0.3 else (255, 50, 50)
+        if porcentaje_energia > 0:
+            angulo_fin = 360 * porcentaje_energia
+            rect_arco = pygame.Rect(15 - radio_rueda, 15 - radio_rueda, radio_rueda * 2, radio_rueda * 2)
+            pygame.draw.arc(sup_rueda, color_rueda, rect_arco, math.radians(90), math.radians(90 + angulo_fin), grosor_rueda)
+            
+        self.pantalla.blit(sup_rueda, (centro_rueda[0] - 15, centro_rueda[1] - 15))
         
     def dibujar_hud(self, agente):
         rect_hud = pygame.Rect(0, 0, self.ancho_ventana, self.alto_hud)
-        pygame.draw.rect(self.pantalla, (25, 25, 30), rect_hud)
-        pygame.draw.line(self.pantalla, (100, 100, 100), (0, self.alto_hud), (self.ancho_ventana, self.alto_hud), 2)
+        pygame.draw.rect(self.pantalla, (15, 15, 18), rect_hud) # Fondo HUD muy oscuro
+        pygame.draw.line(self.pantalla, (180, 150, 80), (0, self.alto_hud), (self.ancho_ventana, self.alto_hud), 3) # Línea oro envejecido
         
-        # Barra de Energía
+        # Barra de Energía (Rediseñada)
         ancho_barra_max = 200
         ancho_barra_actual = int((agente.energia_actual / agente.energia_maxima) * ancho_barra_max)
-        color_barra = (0, 255, 100) if agente.energia_actual > 30 else (255, 50, 50)
+        color_barra = (50, 255, 50) if agente.energia_actual > 30 else (255, 50, 50) # Verde vibrante
         
-        txt_energia = self.fuente_media.render("ENERGIA:", True, COLOR_TEXTO)
-        self.pantalla.blit(txt_energia, (20, 20))
+        txt_energia = self.fuente_media.render(f"ENERGIA: {agente.energia_actual}/{agente.energia_maxima}", True, (220, 220, 220))
+        self.pantalla.blit(txt_energia, (20, 10))
         
-        pygame.draw.rect(self.pantalla, (50, 50, 50), (110, 20, ancho_barra_max, 20))
+        # Contenedor oscuro y borde grueso
+        rect_fondo_barra = pygame.Rect(20, 35, ancho_barra_max, 15)
+        pygame.draw.rect(self.pantalla, (10, 10, 10), rect_fondo_barra)
         if ancho_barra_actual > 0:
-            pygame.draw.rect(self.pantalla, color_barra, (110, 20, ancho_barra_actual, 20))
-        pygame.draw.rect(self.pantalla, (200, 200, 200), (110, 20, ancho_barra_max, 20), 2)
-        
-        txt_val_energia = self.fuente_pequena.render(f"{agente.energia_actual}/{agente.energia_maxima}", True, (255, 255, 255))
-        self.pantalla.blit(txt_val_energia, (120, 22))
+            pygame.draw.rect(self.pantalla, color_barra, (20, 35, ancho_barra_actual, 15))
+        pygame.draw.rect(self.pantalla, (100, 100, 100), rect_fondo_barra, 2) # Borde grueso gris
         
         # Rescatados
         txt_rescatados = self.fuente_media.render(f"RESCATADOS: {agente.humanos_rescatados}", True, (255, 200, 50))
@@ -284,26 +303,33 @@ class Interfaz:
         for tipo, color in self.colores_herramientas.items():
             rect_btn = pygame.Rect(x, y_barra, 40, 40)
             
-            # Dibujar icono en el boton si es posible, sino color solido
+            es_activo = (self.herramienta_actual == tipo)
+            color_fondo_btn = (60, 60, 65) if es_activo else (20, 20, 25)
+            
+            # Dibujar fondo oscuro y borde exterior estilizado
+            pygame.draw.rect(self.pantalla, color_fondo_btn, rect_btn, border_radius=5)
+            
+            # Dibujar icono en el boton si es posible, sino color solido (más pequeño para encajar en el borde)
+            rect_icono = pygame.Rect(x+4, y_barra+4, 32, 32)
             if hasattr(self, 'sprites_animados') and tipo in self.sprites_animados:
-                pygame.draw.rect(self.pantalla, COLOR_VACIO, rect_btn)
-                frame = self.sprites_animados[tipo][0]
-                self.pantalla.blit(frame, rect_btn)
+                frame = pygame.transform.scale(self.sprites_animados[tipo][0], (32, 32))
+                self.pantalla.blit(frame, rect_icono)
             elif hasattr(self, 'sprites') and tipo in self.sprites:
-                pygame.draw.rect(self.pantalla, COLOR_VACIO, rect_btn)
-                self.pantalla.blit(self.sprites[tipo], rect_btn)
+                frame = pygame.transform.scale(self.sprites[tipo], (32, 32))
+                self.pantalla.blit(frame, rect_icono)
             else:
-                pygame.draw.rect(self.pantalla, color, rect_btn)
+                pygame.draw.rect(self.pantalla, color, rect_icono, border_radius=3)
                 
-            if self.herramienta_actual == tipo:
-                pygame.draw.rect(self.pantalla, (255, 255, 0), rect_btn, 3)
+            color_borde = (255, 215, 0) if es_activo else (100, 100, 100) # Oro si es activo, gris si no
+            pygame.draw.rect(self.pantalla, color_borde, rect_btn, 2, border_radius=5)
+            
             x += 60
 
     def dibujar_todo(self, agente, agente_x=None, agente_y=None):
         self.pantalla.fill((0, 0, 0))
         self.dibujar_entorno()
         if agente_x is not None and agente_y is not None:
-            self.dibujar_agente(agente_x, agente_y)
+            self.dibujar_agente(agente_x, agente_y, agente)
         self.dibujar_hud(agente)
         self.dibujar_barra_herramientas()
         self.dibujar_panel_registro()

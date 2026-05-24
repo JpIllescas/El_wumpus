@@ -52,8 +52,8 @@ class Interfaz:
             'EXEC_Q': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 500, 150, 35),
             'AUTO_GEN': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 545, 310, 35),
             'REINICIAR': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 590, 310, 35),
-            'VOL_DOWN': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 610, 150, 35),
-            'VOL_UP': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 610, 150, 35)
+            'VOL_DOWN': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 635, 150, 35),
+            'VOL_UP': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 635, 150, 35)
         }
         
         # Cargar sprite de la llama animada
@@ -354,7 +354,7 @@ class Interfaz:
         rect_btn = txt_btn.get_rect(center=(rect_popup.centerx, rect_popup.bottom - 30))
         self.pantalla.blit(txt_btn, rect_btn)
 
-    def dibujar_todo(self, agente, agente_x=None, agente_y=None):
+    def dibujar_todo(self, agente, agente_x=None, agente_y=None, auto_flip=True):
         self.pantalla.fill((0, 0, 0))
         self.dibujar_entorno()
         if agente_x is not None and agente_y is not None:
@@ -374,7 +374,8 @@ class Interfaz:
             rect_go = txt_go.get_rect(center=(self.ancho_mapa//2, self.alto_hud + self.alto_mapa//2))
             self.pantalla.blit(txt_go, rect_go)
             
-        pygame.display.flip()
+        if auto_flip:
+            pygame.display.flip()
 
     def procesar_clic(self, pos):
         x, y = pos

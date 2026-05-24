@@ -84,7 +84,7 @@ class TomaDeDecision:
         return utilidad
 
     @staticmethod
-    def decidir_mejor_accion(agente, entorno, interfaz):
+    def decidir_mejor_accion(agente, entorno, interfaz, algoritmo="A_STAR"):
         """Elige el mejor objetivo disponible evaluando humanos y estaciones."""
         humanos = entorno.obtener_posiciones_tipo(HUMANO)
         estaciones = entorno.obtener_posiciones_tipo(ESTACION)
@@ -123,9 +123,13 @@ class TomaDeDecision:
         objetivos_filtrados.sort(key=lambda x: x[0], reverse=True)
         top_objetivos = objetivos_filtrados[:3]
         
-        # 2. Búsqueda pesada A* solo en los mejores candidatos
+        # 2. Búsqueda pesada (A* o BFS) solo en los mejores candidatos
         for _, coord_int, tipo in top_objetivos:
-            ruta, _, _ = Busqueda.a_estrella(entorno, inicio, coord_int)
+            if algoritmo == "A_STAR":
+                ruta, _, _ = Busqueda.a_estrella(entorno, inicio, coord_int)
+            else:
+                ruta, _, _ = Busqueda.bfs(entorno, inicio, coord_int)
+                
             utilidad = TomaDeDecision.funcion_utilidad(agente, coord_int, tipo, ruta)
             
             if utilidad > mejor_utilidad:
@@ -135,7 +139,7 @@ class TomaDeDecision:
                 
         if mejor_objetivo:
             tipo_str = "Humano" if mejor_objetivo[1] == HUMANO else "Estación"
-            interfaz.log(f"Decisión: Ir a {tipo_str} en {mejor_objetivo[0]}")
+            interfaz.log(f"Decisión ({algoritmo}): Ir a {tipo_str} en {mejor_objetivo[0]}")
             interfaz.log(f"Utilidad calculada: {mejor_utilidad:.1f}")
             return mejor_ruta, mejor_objetivo[0]
         else:

@@ -229,27 +229,18 @@ def main():
                                 interfaz.log("Error: No hay humanos en el mapa para comparar.")
                         
                         elif accion == 'A_STAR':
-                            interfaz.log(f"Energia: {agente.energia_actual}%. Pensando...")
+                            interfaz.log(f"Energia: {agente.energia_actual}%. Pensando (A*)...")
                             
-                            mejor_ruta, mejor_objetivo = TomaDeDecision.decidir_mejor_accion(agente, entorno, interfaz)
+                            mejor_ruta, mejor_objetivo = TomaDeDecision.decidir_mejor_accion(agente, entorno, interfaz, algoritmo="A_STAR")
                             if mejor_ruta:
                                 agente.establecer_ruta(mejor_ruta)
                                 
                         elif accion == 'BFS':
-                            humanos = entorno.obtener_posiciones_tipo(HUMANO)
-                            if humanos:
-                                objetivo = humanos[0]
-                                inicio = (agente.fila, agente.columna)
-                                interfaz.log(f"Buscando con BFS hacia Humano...")
-                                ruta, nodos, tiempo = Busqueda.bfs(entorno, inicio, objetivo)
-                                if ruta:
-                                    interfaz.log(f"BFS: Ruta hallada en {tiempo}s")
-                                    interfaz.log(f"BFS: Nodos explorados: {nodos}")
-                                    agente.establecer_ruta(ruta)
-                                else:
-                                    interfaz.log("BFS: No hay ruta posible.")
-                            else:
-                                interfaz.log("Error: No hay humanos en el mapa.")
+                            interfaz.log(f"Energia: {agente.energia_actual}%. Pensando (BFS)...")
+                            
+                            mejor_ruta, mejor_objetivo = TomaDeDecision.decidir_mejor_accion(agente, entorno, interfaz, algoritmo="BFS")
+                            if mejor_ruta:
+                                agente.establecer_ruta(mejor_ruta)
                                 
                         elif accion == 'TRAIN_Q':
                             humanos = entorno.obtener_posiciones_tipo(HUMANO)

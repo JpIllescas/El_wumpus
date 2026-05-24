@@ -12,24 +12,39 @@ COLOR_TEXTO = (255, 255, 255)
 COLOR_FONDO_PANEL = (30, 30, 30)
 
 class Interfaz:
-    def __init__(self, entorno, ancho_celda=40, ancho_panel=300):
+    def __init__(self, entorno, ancho_celda=40, ancho_panel=350):
         pygame.init()
         self.entorno = entorno
         self.ancho_celda = ancho_celda
         self.ancho_panel = ancho_panel
-        self.alto_barra = 60
+        
+        # Dimensiones de las áreas
+        self.alto_hud = 60
+        self.alto_barra_herramientas = 70
         
         self.ancho_mapa = entorno.columnas * ancho_celda
         self.alto_mapa = entorno.filas * ancho_celda
         
         self.ancho_ventana = self.ancho_mapa + ancho_panel
-        self.alto_ventana = self.alto_mapa + self.alto_barra
+        self.alto_ventana = self.alto_hud + self.alto_mapa + self.alto_barra_herramientas
         
         self.pantalla = pygame.display.set_mode((self.ancho_ventana, self.alto_ventana))
-        pygame.display.set_caption("Agente de Rescate - Modo Sandbox")
+        pygame.display.set_caption("Simulador de Rescate IA - Avanzado")
         
-        self.fuente = pygame.font.SysFont("Arial", 16)
+        self.fuente_grande = pygame.font.SysFont("Segoe UI", 24, bold=True)
+        self.fuente_media = pygame.font.SysFont("Segoe UI", 18, bold=True)
+        self.fuente_pequena = pygame.font.SysFont("Consolas", 14)
         self.mensajes_log = []
+        
+        # Botones de Acción (UI)
+        self.botones_ui = {
+            'A_STAR': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 450, 150, 35),
+            'BFS': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 450, 150, 35),
+            'TRAIN_Q': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 495, 150, 35),
+            'EXEC_Q': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 495, 150, 35),
+            'AUTO_GEN': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 550, 310, 40),
+            'REINICIAR': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 600, 310, 40)
+        }
         
         # Cargar sprite de la llama animada
         self.img_agente_frames = []
@@ -108,10 +123,22 @@ class Interfaz:
         
     def log(self, mensaje):
         self.mensajes_log.append(mensaje)
-        if len(self.mensajes_log) > 20:
+        if len(self.mensajes_log) > 20: # Mantener solo los últimos 20 mensajes
             self.mensajes_log.pop(0)
 
+    def dibujar_fondo_cuadricula(self):
+        # Dibujar un patrón de ajedrez sutil
+        color1 = (40, 42, 45)
+        color2 = (45, 47, 50)
+        for fila in range(self.entorno.filas):
+            for col in range(self.entorno.columnas):
+                color = color1 if (fila + col) % 2 == 0 else color2
+                rect = pygame.Rect(col * self.ancho_celda, self.alto_hud + (fila * self.ancho_celda), self.ancho_celda, self.ancho_celda)
+                pygame.draw.rect(self.pantalla, color, rect)
+
     def dibujar_entorno(self):
+        self.dibujar_fondo_cuadricula()
+        
         # Actualizar timer global de animación para el entorno
         tiempo_actual = pygame.time.get_ticks()
         if tiempo_actual - self.tiempo_ultimo_frame_entorno > 200: # Velocidad de animacion del entorno
@@ -121,24 +148,27 @@ class Interfaz:
         for fila in range(self.entorno.filas):
             for col in range(self.entorno.columnas):
                 tipo = self.entorno.obtener_celda(fila, col)
-                color = self.colores_herramientas.get(tipo, COLOR_VACIO)
                 
-                rect = pygame.Rect(col * self.ancho_celda, fila * self.ancho_celda, self.ancho_celda, self.ancho_celda)
+                if tipo == VACIO:
+                    continue # El fondo de cuadricula ya está dibujado
+                    
+                rect = pygame.Rect(col * self.ancho_celda, self.alto_hud + (fila * self.ancho_celda), self.ancho_celda, self.ancho_celda)
                 
                 if hasattr(self, 'sprites_animados') and tipo in self.sprites_animados:
-                    pygame.draw.rect(self.pantalla, COLOR_VACIO, rect) # Fondo gris limpio primero
                     frames = self.sprites_animados[tipo]
                     frame_a_dibujar = frames[getattr(self, 'frame_entorno_idx', 0) % len(frames)]
                     self.pantalla.blit(frame_a_dibujar, rect)
                 elif hasattr(self, 'sprites') and tipo in self.sprites:
-                    pygame.draw.rect(self.pantalla, COLOR_VACIO, rect)
                     self.pantalla.blit(self.sprites[tipo], rect)
                 else:
+                    color = self.colores_herramientas.get(tipo, COLOR_VACIO)
                     pygame.draw.rect(self.pantalla, color, rect)
                     
-                pygame.draw.rect(self.pantalla, (50, 50, 50), rect, 1) # Borde
+                # pygame.draw.rect(self.pantalla, (50, 50, 50), rect, 1) # Borde opcional
                 
     def dibujar_agente(self, x, y):
+        # Ajustar 'y' con el alto_hud
+        y_real = y + self.alto_hud
         if self.img_agente_frames:
             # Actualizar animación
             tiempo_actual = pygame.time.get_ticks()
@@ -148,32 +178,99 @@ class Interfaz:
                 
             # Calcular offset para centrar el sprite que es un poco más grande
             offset = (self.img_agente_frames[0].get_width() - self.ancho_celda) // 2
-            self.pantalla.blit(self.img_agente_frames[self.frame_actual], (x - offset, y - offset))
+            self.pantalla.blit(self.img_agente_frames[self.frame_actual], (x - offset, y_real - offset))
         else:
-            rect = pygame.Rect(x, y, self.ancho_celda, self.ancho_celda)
+            rect = pygame.Rect(x, y_real, self.ancho_celda, self.ancho_celda)
             pygame.draw.circle(self.pantalla, COLOR_AGENTE, rect.center, self.ancho_celda // 2 - 4)
         
+    def dibujar_hud(self, agente):
+        rect_hud = pygame.Rect(0, 0, self.ancho_ventana, self.alto_hud)
+        pygame.draw.rect(self.pantalla, (25, 25, 30), rect_hud)
+        pygame.draw.line(self.pantalla, (100, 100, 100), (0, self.alto_hud), (self.ancho_ventana, self.alto_hud), 2)
+        
+        # Barra de Energía
+        ancho_barra_max = 200
+        ancho_barra_actual = int((agente.energia_actual / agente.energia_maxima) * ancho_barra_max)
+        color_barra = (0, 255, 100) if agente.energia_actual > 30 else (255, 50, 50)
+        
+        txt_energia = self.fuente_media.render("ENERGÍA:", True, COLOR_TEXTO)
+        self.pantalla.blit(txt_energia, (20, 20))
+        
+        pygame.draw.rect(self.pantalla, (50, 50, 50), (110, 20, ancho_barra_max, 20))
+        if ancho_barra_actual > 0:
+            pygame.draw.rect(self.pantalla, color_barra, (110, 20, ancho_barra_actual, 20))
+        pygame.draw.rect(self.pantalla, (200, 200, 200), (110, 20, ancho_barra_max, 20), 2)
+        
+        txt_val_energia = self.fuente_pequena.render(f"{agente.energia_actual}/{agente.energia_maxima}", True, (255, 255, 255))
+        self.pantalla.blit(txt_val_energia, (120, 22))
+        
+        # Rescatados
+        txt_rescatados = self.fuente_media.render(f"RESCATADOS: {agente.humanos_rescatados}", True, (255, 200, 50))
+        self.pantalla.blit(txt_rescatados, (350, 20))
+        
+        # Estado (Cargando humano)
+        if agente.cargando_humano:
+            txt_cargando = self.fuente_media.render("🎒 LLEVANDO AL HOSPITAL", True, (50, 200, 255))
+            self.pantalla.blit(txt_cargando, (550, 20))
+
     def dibujar_panel_registro(self):
-        rect_panel = pygame.Rect(self.ancho_mapa, 0, self.ancho_panel, self.alto_ventana)
+        rect_panel = pygame.Rect(self.ancho_mapa, self.alto_hud, self.ancho_panel, self.alto_ventana - self.alto_hud)
         pygame.draw.rect(self.pantalla, COLOR_FONDO_PANEL, rect_panel)
+        pygame.draw.line(self.pantalla, (100, 100, 100), (self.ancho_mapa, self.alto_hud), (self.ancho_mapa, self.alto_ventana), 2)
         
-        titulo = self.fuente.render("Panel de Registro", True, COLOR_TEXTO)
-        self.pantalla.blit(titulo, (self.ancho_mapa + 10, 50))
+        titulo = self.fuente_grande.render("LOG DE ACCIONES", True, COLOR_TEXTO)
+        self.pantalla.blit(titulo, (self.ancho_mapa + 20, self.alto_hud + 20))
         
-        y = 70
-        for msg in self.mensajes_log:
-            texto = self.fuente.render(msg, True, COLOR_TEXTO)
-            self.pantalla.blit(texto, (self.ancho_mapa + 10, y))
-            y += 20
+        y = self.alto_hud + 60
+        for msg in self.mensajes_log[-15:]: # Mostrar menos mensajes para dar espacio a botones
+            texto = self.fuente_pequena.render(msg, True, (200, 200, 200))
+            self.pantalla.blit(texto, (self.ancho_mapa + 20, y))
+            y += 22
+            
+        # Dibujar Botones UI
+        colores_btn = {
+            'A_STAR': (60, 120, 200),
+            'BFS': (100, 100, 180),
+            'TRAIN_Q': (180, 80, 80),
+            'EXEC_Q': (200, 100, 100),
+            'AUTO_GEN': (100, 160, 100),
+            'REINICIAR': (80, 80, 80)
+        }
+        textos_btn = {
+            'A_STAR': "Utilidad (A*)",
+            'BFS': "Búsqueda (BFS)",
+            'TRAIN_Q': "Entrenar Q",
+            'EXEC_Q': "Ejecutar Q",
+            'AUTO_GEN': "Generar Mapa Aleatorio",
+            'REINICIAR': "Reiniciar Juego"
+        }
+        
+        for key, rect in self.botones_ui.items():
+            # Efecto hover simple (si el mouse está encima)
+            color = colores_btn[key]
+            if rect.collidepoint(pygame.mouse.get_pos()):
+                color = (min(color[0]+30, 255), min(color[1]+30, 255), min(color[2]+30, 255))
+                
+            pygame.draw.rect(self.pantalla, color, rect, border_radius=5)
+            pygame.draw.rect(self.pantalla, (200, 200, 200), rect, 1, border_radius=5)
+            
+            txt = self.fuente_pequena.render(textos_btn[key], True, (255,255,255))
+            txt_rect = txt.get_rect(center=rect.center)
+            self.pantalla.blit(txt, txt_rect)
             
     def dibujar_barra_herramientas(self):
-        rect_barra = pygame.Rect(0, self.alto_mapa, self.ancho_mapa, self.alto_barra)
-        pygame.draw.rect(self.pantalla, (60, 60, 60), rect_barra)
+        rect_barra = pygame.Rect(0, self.alto_hud + self.alto_mapa, self.ancho_mapa, self.alto_barra_herramientas)
+        pygame.draw.rect(self.pantalla, (30, 30, 35), rect_barra)
+        pygame.draw.line(self.pantalla, (100, 100, 100), (0, self.alto_hud + self.alto_mapa), (self.ancho_mapa, self.alto_hud + self.alto_mapa), 2)
+        
+        txt_herramienta = self.fuente_media.render("MODO DIOS (Pinceles):", True, (200, 200, 200))
+        self.pantalla.blit(txt_herramienta, (20, self.alto_hud + self.alto_mapa + 25))
         
         # Dibujar opciones
-        x = 10
+        x = 220
+        y_barra = self.alto_hud + self.alto_mapa + 15
         for tipo, color in self.colores_herramientas.items():
-            rect_btn = pygame.Rect(x, self.alto_mapa + 10, 40, 40)
+            rect_btn = pygame.Rect(x, y_barra, 40, 40)
             
             # Dibujar icono en el boton si es posible, sino color solido
             if hasattr(self, 'sprites_animados') and tipo in self.sprites_animados:
@@ -187,30 +284,54 @@ class Interfaz:
                 pygame.draw.rect(self.pantalla, color, rect_btn)
                 
             if self.herramienta_actual == tipo:
-                pygame.draw.rect(self.pantalla, (255, 255, 255), rect_btn, 3)
+                pygame.draw.rect(self.pantalla, (255, 255, 0), rect_btn, 3)
             x += 60
 
-    def dibujar_todo(self, agente_x=None, agente_y=None):
+    def dibujar_todo(self, agente, agente_x=None, agente_y=None):
         self.pantalla.fill((0, 0, 0))
         self.dibujar_entorno()
         if agente_x is not None and agente_y is not None:
             self.dibujar_agente(agente_x, agente_y)
+        self.dibujar_hud(agente)
         self.dibujar_barra_herramientas()
         self.dibujar_panel_registro()
+        
+        # Alerta de Game Over
+        if agente.energia_actual <= 0:
+            s = pygame.Surface((self.ancho_mapa, self.alto_mapa))
+            s.set_alpha(128)
+            s.fill((255,0,0))
+            self.pantalla.blit(s, (0, self.alto_hud))
+            
+            txt_go = self.fuente_grande.render("¡AGENTE SIN ENERGÍA!", True, (255, 255, 255))
+            rect_go = txt_go.get_rect(center=(self.ancho_mapa//2, self.alto_hud + self.alto_mapa//2))
+            self.pantalla.blit(txt_go, rect_go)
+            
         pygame.display.flip()
 
     def procesar_clic(self, pos):
         x, y = pos
         # Clic en barra de herramientas
-        if y >= self.alto_mapa and x < self.ancho_mapa:
-            btn_idx = (x - 10) // 60
+        y_barra = self.alto_hud + self.alto_mapa
+        if y >= y_barra and x < self.ancho_mapa and x >= 220:
+            btn_idx = (x - 220) // 60
             if 0 <= btn_idx < len(self.colores_herramientas):
                 tipos = list(self.colores_herramientas.keys())
                 self.herramienta_actual = tipos[btn_idx]
-                self.log(f"Herramienta: {self.herramienta_actual}")
+                self.log(f"Herramienta seleccionada: {self.herramienta_actual}")
+                return "HERRAMIENTA"
+                
         # Clic en mapa
-        elif x < self.ancho_mapa and y < self.alto_mapa:
+        elif x < self.ancho_mapa and self.alto_hud <= y < y_barra:
             col = x // self.ancho_celda
-            fila = y // self.ancho_celda
+            fila = (y - self.alto_hud) // self.ancho_celda
             self.entorno.agregar_celda(fila, col, self.herramienta_actual)
-            self.log(f"Celda ({fila},{col}) -> {self.herramienta_actual}")
+            return "MAPA"
+            
+        # Clic en botones UI
+        elif x >= self.ancho_mapa:
+            for key, rect in self.botones_ui.items():
+                if rect.collidepoint(pos):
+                    return key
+                    
+        return None

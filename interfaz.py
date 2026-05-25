@@ -29,7 +29,7 @@ class Interfaz:
         self.alto_ventana = self.alto_hud + self.alto_mapa + self.alto_barra_herramientas
         
         self.pantalla = pygame.display.set_mode((self.ancho_ventana, self.alto_ventana))
-        pygame.display.set_caption("Simulador de Rescate IA - Avanzado")
+        pygame.display.set_caption("Rescue Ollama")
         
         try:
             self.fuente_grande = pygame.font.Font("assets/font.otf", 24)

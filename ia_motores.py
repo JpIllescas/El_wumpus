@@ -152,12 +152,12 @@ class TomaDeDecision:
                 mejor_ruta = ruta
                 
         if mejor_objetivo:
-            tipo_str = "Humano" if mejor_objetivo[1] == HUMANO else "Estación"
-            interfaz.log(f"Decisión ({algoritmo}): Ir a {tipo_str} en {mejor_objetivo[0]}")
+            tipo_str = "Humano" if mejor_objetivo[1] == HUMANO else "Estacion"
+            interfaz.log(f"Decision ({algoritmo}): Ir a {tipo_str} en {mejor_objetivo[0]}")
             interfaz.log(f"Utilidad calculada: {mejor_utilidad:.1f}")
             return mejor_ruta, mejor_objetivo[0]
         else:
-            interfaz.log("Ningún objetivo es alcanzable.")
+            interfaz.log("Ningun objetivo es alcanzable.")
             return None, None
 
 class Busqueda:

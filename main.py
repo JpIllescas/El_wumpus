@@ -67,7 +67,7 @@ def main():
     
     interfaz.log("Sistema iniciado.")
     interfaz.log("Modo Dios activado. Pinta el mapa.")
-    interfaz.log("[ESPACIO] Toma de Decisiones Autónoma")
+    interfaz.log("[ESPACIO] Toma de Decisiones Autonoma")
     interfaz.log("[B] Busqueda BFS (No Informada)")
     interfaz.log("[T] Entrenar Q-Learning")
     interfaz.log("[Q] Ejecutar ruta Q-Learning")
@@ -268,10 +268,10 @@ def main():
                                 interfaz.log(f"Ejecutando Q-Learning...")
                                 ruta = motor_q.obtener_ruta(inicio, objetivo)
                                 if ruta:
-                                    interfaz.log(f"Q-Learning: Ruta óptima hallada.")
+                                    interfaz.log(f"Q-Learning: Ruta optima hallada.")
                                     agente.establecer_ruta(ruta)
                                 else:
-                                    interfaz.log("Q-Learning: Aún no sabe cómo llegar.")
+                                    interfaz.log("Q-Learning: Aun no sabe como llegar.")
                             else:
                                 interfaz.log("Error: No hay objetivos viables para ejecutar Q-Learning.")
                                 
@@ -464,8 +464,8 @@ def main():
                 fuente_creditos = pygame.font.SysFont("Segoe UI", 16)
                 
             # Título (Alineado arriba a la izquierda, estilo GoW)
-            txt_titulo_1 = fuente_titulo.render("SIMULADOR", True, (220, 220, 220))
-            txt_titulo_2 = fuente_titulo.render("DE RESCATE IA", True, (100, 150, 255)) # Un toque azul claro
+            txt_titulo_1 = fuente_titulo.render("RESCUE", True, (220, 220, 220))
+            txt_titulo_2 = fuente_titulo.render("OLLAMA", True, (100, 150, 255)) # Un toque azul claro
             interfaz.pantalla.blit(txt_titulo_1, (50, 50))
             interfaz.pantalla.blit(txt_titulo_2, (50, 110))
             
@@ -532,7 +532,7 @@ def main():
                     # REPLANNING: Verificar si hay un obstáculo no previsto (Muro o Enemigo) bloqueando el camino
                     celda_siguiente = entorno.obtener_celda(siguiente[0], siguiente[1])
                     if celda_siguiente in [1, 5, 6]: # MURO, RATA o DUENDE
-                        interfaz.log("¡Obstáculo detectado! Recalculando ruta...")
+                        interfaz.log("¡Obstaculo detectado! Recalculando ruta...")
                         # 1. Registrar el obstáculo en la base de conocimiento para que la búsqueda lo rodee
                         agente.base_conocimiento.mapa_conocido[siguiente[0]][siguiente[1]] = celda_siguiente
                         
@@ -548,7 +548,7 @@ def main():
                             
                         paso_exitoso = agente.avanzar_ruta(entorno)
                         if not paso_exitoso:
-                             interfaz.log("¡Agente sin energía! Debe ser rescatado.")
+                             interfaz.log("¡Agente sin energia! Debe ser rescatado.")
                              agente.ruta_actual = [] # Cancelar ruta
                              estado_actual = ESTADO_POPUP
                              popup_titulo = "GAME OVER"

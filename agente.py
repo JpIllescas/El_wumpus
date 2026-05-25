@@ -1,8 +1,9 @@
 import random
 from entorno import FUEGO, ESTACION, HUMANO, RATA, DUENDE, MURO
+from ia_motores import BaseConocimiento
 
 class Agente:
-    def __init__(self, fila_inicial, col_inicial, energia_maxima=100):
+    def __init__(self, fila_inicial, col_inicial, energia_maxima=100, filas_entorno=15, col_entorno=20):
         self.fila = int(fila_inicial)
         self.columna = int(col_inicial)
         self.energia_maxima = energia_maxima
@@ -11,6 +12,7 @@ class Agente:
         self.ruta_actual = []
         self.log_callback = None # Función para imprimir en la interfaz
         self.cargando_humano = False # Nueva variable para la Fase 6
+        self.base_conocimiento = BaseConocimiento(filas_entorno, col_entorno)
 
     def mover_a(self, fila, columna, entorno):
         """Mueve al agente a una nueva coordenada, gastando energia e interactuando con el entorno."""
@@ -20,6 +22,9 @@ class Agente:
         self.fila = int(fila)
         self.columna = int(columna)
         self.energia_actual -= 1
+        
+        # Percibir el nuevo entorno y guardarlo en la Base de Conocimiento
+        self.base_conocimiento.percibir_entorno(entorno, self.fila, self.columna)
         
         celda_actual = entorno.obtener_celda(self.fila, self.columna)
         

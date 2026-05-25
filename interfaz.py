@@ -29,7 +29,13 @@ class Interfaz:
         self.alto_ventana = self.alto_hud + self.alto_mapa + self.alto_barra_herramientas
         
         self.pantalla = pygame.display.set_mode((self.ancho_ventana, self.alto_ventana))
-        pygame.display.set_caption("Simulador de Rescate IA - Avanzado")
+        pygame.display.set_caption("Rescue Agent: Ollama")
+        
+        try:
+            icono = pygame.image.load("assets/icon.png").convert_alpha()
+            pygame.display.set_icon(icono)
+        except Exception as e:
+            print("No se pudo cargar el icono de la ventana:", e)
         
         try:
             self.fuente_grande = pygame.font.Font("assets/font.otf", 24)
@@ -44,14 +50,16 @@ class Interfaz:
         
         # Botones de Acción (UI)
         self.botones_ui = {
+            'TOGGLE_SIM': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 360, 310, 40),
             'A_STAR': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 410, 150, 35),
             'BFS': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 410, 150, 35),
-            'TRAIN_Q': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 455, 150, 35),
-            'EXEC_Q': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 455, 150, 35),
-            'AUTO_GEN': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 510, 310, 40),
-            'REINICIAR': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 560, 310, 40),
-            'VOL_DOWN': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 610, 150, 35),
-            'VOL_UP': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 610, 150, 35)
+            'COMPARAR': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 455, 310, 35),
+            'TRAIN_Q': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 500, 150, 35),
+            'EXEC_Q': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 500, 150, 35),
+            'AUTO_GEN': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 545, 310, 35),
+            'REINICIAR': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 590, 310, 35),
+            'VOL_DOWN': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 635, 150, 35),
+            'VOL_UP': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 635, 150, 35)
         }
         
         # Cargar sprite de la llama animada
@@ -256,8 +264,10 @@ class Interfaz:
             
         # Dibujar Botones UI
         colores_btn = {
+            'TOGGLE_SIM': (200, 150, 50) if not getattr(self, 'simulacion_activa', False) else (50, 200, 50),
             'A_STAR': (60, 120, 200),
             'BFS': (100, 100, 180),
+            'COMPARAR': (150, 100, 200),
             'TRAIN_Q': (180, 80, 80),
             'EXEC_Q': (200, 100, 100),
             'AUTO_GEN': (100, 160, 100),
@@ -266,8 +276,10 @@ class Interfaz:
             'VOL_UP': (60, 80, 100)
         }
         textos_btn = {
+            'TOGGLE_SIM': "INICIAR SIMULACION" if not getattr(self, 'simulacion_activa', False) else "PAUSAR SIMULACION",
             'A_STAR': "Utilidad (A*)",
             'BFS': "Busqueda (BFS)",
+            'COMPARAR': "Comparar A* vs BFS",
             'TRAIN_Q': "Entrenar Q",
             'EXEC_Q': "Ejecutar Q",
             'AUTO_GEN': "Generar Mapa Aleatorio",
@@ -325,7 +337,30 @@ class Interfaz:
             
             x += 60
 
-    def dibujar_todo(self, agente, agente_x=None, agente_y=None):
+    def dibujar_popup(self, titulo, mensaje):
+        s = pygame.Surface((self.ancho_ventana, self.alto_ventana))
+        s.set_alpha(180)
+        s.fill((0, 0, 0))
+        self.pantalla.blit(s, (0, 0))
+        
+        rect_popup = pygame.Rect(0, 0, 500, 200)
+        rect_popup.center = (self.ancho_ventana//2, self.alto_ventana//2)
+        pygame.draw.rect(self.pantalla, (40, 40, 45), rect_popup, border_radius=10)
+        pygame.draw.rect(self.pantalla, (200, 200, 200), rect_popup, 2, border_radius=10)
+        
+        txt_titulo = self.fuente_grande.render(titulo, True, (255, 200, 50))
+        rect_titulo = txt_titulo.get_rect(center=(rect_popup.centerx, rect_popup.top + 40))
+        self.pantalla.blit(txt_titulo, rect_titulo)
+        
+        txt_msg = self.fuente_media.render(mensaje, True, (255, 255, 255))
+        rect_msg = txt_msg.get_rect(center=(rect_popup.centerx, rect_popup.centery + 10))
+        self.pantalla.blit(txt_msg, rect_msg)
+        
+        txt_btn = self.fuente_pequena.render("Haz clic o presiona Enter para continuar", True, (150, 150, 150))
+        rect_btn = txt_btn.get_rect(center=(rect_popup.centerx, rect_popup.bottom - 30))
+        self.pantalla.blit(txt_btn, rect_btn)
+
+    def dibujar_todo(self, agente, agente_x=None, agente_y=None, auto_flip=True):
         self.pantalla.fill((0, 0, 0))
         self.dibujar_entorno()
         if agente_x is not None and agente_y is not None:
@@ -345,7 +380,8 @@ class Interfaz:
             rect_go = txt_go.get_rect(center=(self.ancho_mapa//2, self.alto_hud + self.alto_mapa//2))
             self.pantalla.blit(txt_go, rect_go)
             
-        pygame.display.flip()
+        if auto_flip:
+            pygame.display.flip()
 
     def procesar_clic(self, pos):
         x, y = pos

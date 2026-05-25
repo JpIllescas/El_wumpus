@@ -4,6 +4,30 @@ import random
 from entorno import MURO, FUEGO, HUMANO, ESTACION, RATA, DUENDE
 import time
 
+class BaseConocimiento:
+    def __init__(self, filas, columnas):
+        self.filas = filas
+        self.columnas = columnas
+        # -1 = Desconocido, resto = Valores del entorno
+        self.mapa_conocido = [[-1 for _ in range(columnas)] for _ in range(filas)]
+        
+    def percibir_entorno(self, entorno, fila, col):
+        """El agente percibe la celda actual y las adyacentes."""
+        direcciones = [(0, 0), (-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
+        for df, dc in direcciones:
+            nf, nc = int(fila) + df, int(col) + dc
+            if 0 <= nf < self.filas and 0 <= nc < self.columnas:
+                self.mapa_conocido[nf][nc] = entorno.obtener_celda(nf, nc)
+                
+    def obtener_celda(self, fila, col):
+        """Devuelve el contenido conocido de la celda o asume VACIO si es desconocido."""
+        if 0 <= fila < self.filas and 0 <= col < self.columnas:
+            valor = self.mapa_conocido[fila][col]
+            if valor == -1:
+                return 0 # 0 es VACIO. Asumimos vacío hasta no descubrir lo contrario.
+            return valor
+        return MURO # Fuera del mapa cuenta como muro
+
 class MotorInferencia:
     base_conocimiento = set()
 
@@ -45,6 +69,11 @@ class TomaDeDecision:
         distancia = len(ruta)
         costo_energia = distancia
         
+        # Supervivencia estricta: si va por un humano pero no le alcanza la energia 
+        # para ir y tener un margen de 15 pasos para buscar el hospital despues, aborta.
+        if tipo_objetivo == HUMANO and agente.energia_actual < distancia + 15:
+            return -9999 # Demasiado riesgo de morir, buscar estación o rendirse
+        
         # Recompensas base
         recompensa = 0
         if agente.cargando_humano:
@@ -69,7 +98,7 @@ class TomaDeDecision:
         return utilidad
 
     @staticmethod
-    def decidir_mejor_accion(agente, entorno, interfaz):
+    def decidir_mejor_accion(agente, entorno, interfaz, algoritmo="A_STAR"):
         """Elige el mejor objetivo disponible evaluando humanos y estaciones."""
         humanos = entorno.obtener_posiciones_tipo(HUMANO)
         estaciones = entorno.obtener_posiciones_tipo(ESTACION)
@@ -108,9 +137,13 @@ class TomaDeDecision:
         objetivos_filtrados.sort(key=lambda x: x[0], reverse=True)
         top_objetivos = objetivos_filtrados[:3]
         
-        # 2. Búsqueda pesada A* solo en los mejores candidatos
+        # 2. Búsqueda pesada (A* o BFS) solo en los mejores candidatos
         for _, coord_int, tipo in top_objetivos:
-            ruta, _, _ = Busqueda.a_estrella(entorno, inicio, coord_int)
+            if algoritmo == "A_STAR":
+                ruta, _, _ = Busqueda.a_estrella(agente.base_conocimiento, inicio, coord_int)
+            else:
+                ruta, _, _ = Busqueda.bfs(agente.base_conocimiento, inicio, coord_int)
+                
             utilidad = TomaDeDecision.funcion_utilidad(agente, coord_int, tipo, ruta)
             
             if utilidad > mejor_utilidad:
@@ -119,12 +152,12 @@ class TomaDeDecision:
                 mejor_ruta = ruta
                 
         if mejor_objetivo:
-            tipo_str = "Humano" if mejor_objetivo[1] == HUMANO else "Estación"
-            interfaz.log(f"Decisión: Ir a {tipo_str} en {mejor_objetivo[0]}")
+            tipo_str = "Humano" if mejor_objetivo[1] == HUMANO else "Estacion"
+            interfaz.log(f"Decision ({algoritmo}): Ir a {tipo_str} en {mejor_objetivo[0]}")
             interfaz.log(f"Utilidad calculada: {mejor_utilidad:.1f}")
             return mejor_ruta, mejor_objetivo[0]
         else:
-            interfaz.log("Ningún objetivo es alcanzable.")
+            interfaz.log("Ningun objetivo es alcanzable.")
             return None, None
 
 class Busqueda:
@@ -277,6 +310,8 @@ class QLearning:
                         proximo_estado = estado
                     elif celda == FUEGO:
                         recompensa = -50
+                    elif celda in [RATA, DUENDE]:
+                        recompensa = -500
                     elif proximo_estado == objetivo:
                         recompensa = 1000
                     else:

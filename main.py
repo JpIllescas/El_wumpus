@@ -78,6 +78,9 @@ def main():
     # Instancia de Q-Learning
     motor_q = QLearning(entorno)
     
+    # Algoritmo de búsqueda activo para planificación y replanificación
+    algoritmo_activo = "A_STAR"
+    
     # Variables para animación de movimiento fluido
     agente_visual_x = agente.columna * interfaz.ancho_celda
     agente_visual_y = agente.fila * interfaz.ancho_celda
@@ -229,6 +232,7 @@ def main():
                                 interfaz.log("Error: No hay humanos en el mapa para comparar.")
                         
                         elif accion == 'A_STAR':
+                            algoritmo_activo = "A_STAR"
                             interfaz.log(f"Energia: {agente.energia_actual}%. Pensando (A*)...")
                             
                             mejor_ruta, mejor_objetivo = TomaDeDecision.decidir_mejor_accion(agente, entorno, interfaz, algoritmo="A_STAR")
@@ -236,6 +240,7 @@ def main():
                                 agente.establecer_ruta(mejor_ruta)
                                 
                         elif accion == 'BFS':
+                            algoritmo_activo = "BFS"
                             interfaz.log(f"Energia: {agente.energia_actual}%. Pensando (BFS)...")
                             
                             mejor_ruta, mejor_objetivo = TomaDeDecision.decidir_mejor_accion(agente, entorno, interfaz, algoritmo="BFS")
@@ -243,20 +248,22 @@ def main():
                                 agente.establecer_ruta(mejor_ruta)
                                 
                         elif accion == 'TRAIN_Q':
-                            humanos = entorno.obtener_posiciones_tipo(HUMANO)
-                            if humanos:
-                                objetivo = humanos[0]
+                            # Usar TomaDeDecision para elegir el mejor objetivo lógico (humano o hospital) según el estado
+                            mejor_ruta, mejor_objetivo = TomaDeDecision.decidir_mejor_accion(agente, entorno, interfaz, algoritmo=algoritmo_activo)
+                            if mejor_objetivo:
+                                objetivo = mejor_objetivo
                                 inicio = (agente.fila, agente.columna)
                                 interfaz.log(f"Entrenando Q-Learning (500 ep.)...")
                                 tiempo_entrenamiento = motor_q.entrenar(inicio, objetivo, 500)
                                 interfaz.log(f"Entrenamiento completado en {tiempo_entrenamiento}s")
                             else:
-                                interfaz.log("Error: No hay humanos para entrenar.")
+                                interfaz.log("Error: No hay objetivos viables para entrenar Q-Learning.")
                                 
                         elif accion == 'EXEC_Q':
-                            humanos = entorno.obtener_posiciones_tipo(HUMANO)
-                            if humanos:
-                                objetivo = humanos[0]
+                            # Usar TomaDeDecision para elegir el mejor objetivo lógico (humano o hospital) según el estado
+                            mejor_ruta, mejor_objetivo = TomaDeDecision.decidir_mejor_accion(agente, entorno, interfaz, algoritmo=algoritmo_activo)
+                            if mejor_objetivo:
+                                objetivo = mejor_objetivo
                                 inicio = (agente.fila, agente.columna)
                                 interfaz.log(f"Ejecutando Q-Learning...")
                                 ruta = motor_q.obtener_ruta(inicio, objetivo)
@@ -266,7 +273,7 @@ def main():
                                 else:
                                     interfaz.log("Q-Learning: Aún no sabe cómo llegar.")
                             else:
-                                interfaz.log("Error: No hay humanos en el mapa.")
+                                interfaz.log("Error: No hay objetivos viables para ejecutar Q-Learning.")
                                 
                         elif accion == 'AUTO_GEN':
                             generar_mapa_aleatorio(entorno, interfaz)
@@ -526,24 +533,26 @@ def main():
                     celda_siguiente = entorno.obtener_celda(siguiente[0], siguiente[1])
                     if celda_siguiente in [1, 5, 6]: # MURO, RATA o DUENDE
                         interfaz.log("¡Obstáculo detectado! Recalculando ruta...")
+                        # 1. Registrar el obstáculo en la base de conocimiento para que la búsqueda lo rodee
+                        agente.base_conocimiento.mapa_conocido[siguiente[0]][siguiente[1]] = celda_siguiente
+                        
                         agente.ruta_actual = []
-                        # Usar el algoritmo actual (A_STAR por defecto si no sabemos cual se usó, o el último. Por simplicidad, TomaDeDecision decide)
-                        mejor_ruta, mejor_objetivo = TomaDeDecision.decidir_mejor_accion(agente, entorno, interfaz, algoritmo="A_STAR")
+                        # Usar el algoritmo activo (A* o BFS) seleccionado por el usuario para recalcular
+                        mejor_ruta, mejor_objetivo = TomaDeDecision.decidir_mejor_accion(agente, entorno, interfaz, algoritmo=algoritmo_activo)
                         if mejor_ruta:
                             agente.establecer_ruta(mejor_ruta)
-                        continue # Salta este frame para pensar
-                    
-                    riesgo = MotorInferencia.inferir_riesgo(entorno, siguiente[0], siguiente[1])
-                    if riesgo > 0:
-                        interfaz.log(f"Logica: Riesgo de fuego al frente (Nivel {riesgo})")
-                        
-                    paso_exitoso = agente.avanzar_ruta(entorno)
-                    if not paso_exitoso:
-                         interfaz.log("¡Agente sin energía! Debe ser rescatado.")
-                         agente.ruta_actual = [] # Cancelar ruta
-                         estado_actual = ESTADO_POPUP
-                         popup_titulo = "GAME OVER"
-                         popup_mensaje = "¡El agente se ha quedado sin energia!"
+                    else:
+                        riesgo = MotorInferencia.inferir_riesgo(entorno, siguiente[0], siguiente[1])
+                        if riesgo > 0:
+                            interfaz.log(f"Logica: Riesgo de fuego al frente (Nivel {riesgo})")
+                            
+                        paso_exitoso = agente.avanzar_ruta(entorno)
+                        if not paso_exitoso:
+                             interfaz.log("¡Agente sin energía! Debe ser rescatado.")
+                             agente.ruta_actual = [] # Cancelar ruta
+                             estado_actual = ESTADO_POPUP
+                             popup_titulo = "GAME OVER"
+                             popup_mensaje = "¡El agente se ha quedado sin energia!"
                          
                 # Mover enemigos
                 if tiempo_actual - tiempo_ultimo_enemigo > retraso_enemigos:

@@ -107,6 +107,19 @@ def main():
     intro_fase = 0 # 0: FadeIn 1, 1: FadeOut 1, 2: FadeIn 2, 3: FadeOut 2
     intro_tiempo_inicio = pygame.time.get_ticks()
     
+    try:
+        img_umg_logo_orig = pygame.image.load("assets/umg.png").convert_alpha()
+        img_umg = pygame.transform.scale(img_umg_logo_orig, (200,175))
+    except Exception as e:
+        print("Error cargando el logo de la UMG",e)
+        img_umg = None;
+
+    try:
+        img_menu_orig = pygame.image.load("assets/menu.png").convert_alpha()
+        img_menu = pygame.transform.scale(img_menu_orig, (interfaz.ancho_ventana, interfaz.alto_ventana))
+    except Exception as e:
+        print("Error cargando imagen de fondo de menu:", e)
+        img_menu = None
 
     try:
         img_jose_orig = pygame.image.load("assets/Jose_Pablo.png").convert_alpha()
@@ -416,8 +429,15 @@ def main():
                 alpha_t1 = intro_alpha_1
                 alpha_t1_sub = max(0, min(255, intro_alpha_1 * 2 - 255)) # Aparece desfasado
                 
-                dibujar_texto_fade(texto1, interfaz.ancho_ventana//2, interfaz.alto_ventana//2 - 20, alpha_t1)
-                dibujar_texto_fade(texto1_sub, interfaz.ancho_ventana//2, interfaz.alto_ventana//2 + 20, alpha_t1_sub)
+                if img_umg:
+                    img_umg.set_alpha(alpha_t1)
+                    rect_umg = img_umg.get_rect(center=(interfaz.ancho_ventana//2, interfaz.alto_ventana//2 - 110))
+                    interfaz.pantalla.blit(img_umg, rect_umg)
+                    dibujar_texto_fade(texto1, interfaz.ancho_ventana//2, interfaz.alto_ventana//2 + 30, alpha_t1)
+                    dibujar_texto_fade(texto1_sub, interfaz.ancho_ventana//2, interfaz.alto_ventana//2 + 80, alpha_t1_sub)
+                else:
+                    dibujar_texto_fade(texto1, interfaz.ancho_ventana//2, interfaz.alto_ventana//2 - 20, alpha_t1)
+                    dibujar_texto_fade(texto1_sub, interfaz.ancho_ventana//2, interfaz.alto_ventana//2 + 20, alpha_t1_sub)
             elif intro_fase in [5, 6, 7]:
                 alpha_t2 = intro_alpha_2
                 alpha_fotos = max(0, min(255, intro_alpha_2 * 2 - 128))
@@ -452,7 +472,10 @@ def main():
             pygame.display.flip()
             
         elif estado_actual == ESTADO_MENU:
-            interfaz.pantalla.fill((10, 12, 15)) # Fondo muy oscuro
+            if img_menu:
+                interfaz.pantalla.blit(img_menu, (0, 0))
+            else:
+                interfaz.pantalla.fill((10, 12, 15)) # Fondo muy oscuro
             
             try:
                 fuente_titulo = pygame.font.Font("assets/font.otf", 70)
@@ -464,7 +487,7 @@ def main():
                 fuente_creditos = pygame.font.SysFont("Segoe UI", 16)
                 
             # Título (Alineado arriba a la izquierda, estilo GoW)
-            txt_titulo_1 = fuente_titulo.render("RESCUE", True, (220, 220, 220))
+            txt_titulo_1 = fuente_titulo.render("RESCUE AGENT:", True, (220, 220, 220))
             txt_titulo_2 = fuente_titulo.render("OLLAMA", True, (100, 150, 255)) # Un toque azul claro
             interfaz.pantalla.blit(txt_titulo_1, (50, 50))
             interfaz.pantalla.blit(txt_titulo_2, (50, 110))
@@ -498,14 +521,9 @@ def main():
                 txt_opcion = fuente_menu.render(opcion, True, color_texto)
                 interfaz.pantalla.blit(txt_opcion, (60, y_opcion))
                 y_opcion += 60
-                
-            # Dibujar fotos en la esquina inferior derecha del menu (sobre los nombres)
-            if img_jose_menu and img_sebas_menu:
-                interfaz.pantalla.blit(img_jose_menu, (interfaz.ancho_ventana - 190, interfaz.alto_ventana - 140))
-                interfaz.pantalla.blit(img_sebas_menu, (interfaz.ancho_ventana - 100, interfaz.alto_ventana - 140))
-                
+
             # Créditos en la esquina inferior derecha
-            txt_creditos = fuente_creditos.render("Jose Pablo Illescas y Sebastian Holweger", True, (100, 100, 100))
+            txt_creditos = fuente_creditos.render("Jose Pablo Illescas y Sebastian Holweger", True, (255, 255, 255))
             rect_cred = txt_creditos.get_rect(bottomright=(interfaz.ancho_ventana - 20, interfaz.alto_ventana - 20))
             interfaz.pantalla.blit(txt_creditos, rect_cred)
             

@@ -29,7 +29,13 @@ class Interfaz:
         self.alto_ventana = self.alto_hud + self.alto_mapa + self.alto_barra_herramientas
         
         self.pantalla = pygame.display.set_mode((self.ancho_ventana, self.alto_ventana))
-        pygame.display.set_caption("Rescue Ollama")
+        pygame.display.set_caption("Rescue Agent: Ollama")
+        
+        try:
+            icono = pygame.image.load("assets/icon.png").convert_alpha()
+            pygame.display.set_icon(icono)
+        except Exception as e:
+            print("No se pudo cargar el icono de la ventana:", e)
         
         try:
             self.fuente_grande = pygame.font.Font("assets/font.otf", 24)

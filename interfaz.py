@@ -9,7 +9,7 @@ COLOR_HUMANO = (50, 255, 50)
 COLOR_ESTACION = (255, 255, 50)
 COLOR_AGENTE = (50, 50, 255)
 COLOR_TEXTO = (255, 255, 255)
-COLOR_FONDO_PANEL = (30, 30, 30)
+COLOR_FONDO_PANEL = (15, 14, 12) # Marrón muy oscuro (GOW style)
 
 class Interfaz:
     def __init__(self, entorno, ancho_celda=40, ancho_panel=350):
@@ -28,7 +28,7 @@ class Interfaz:
         self.ancho_ventana = self.ancho_mapa + ancho_panel
         self.alto_ventana = self.alto_hud + self.alto_mapa + self.alto_barra_herramientas
         
-        self.pantalla = pygame.display.set_mode((self.ancho_ventana, self.alto_ventana))
+        self.pantalla = pygame.display.set_mode((self.ancho_ventana, self.alto_ventana), pygame.RESIZABLE | pygame.SCALED)
         pygame.display.set_caption("Rescue Agent: Ollama")
         
         try:
@@ -37,14 +37,34 @@ class Interfaz:
         except Exception as e:
             print("No se pudo cargar el icono de la ventana:", e)
         
+        # Inicializar sonidos de interfaz (silenciosos si no existen)
+        try:
+            self.snd_hover = pygame.mixer.Sound("assets/hover.wav")
+            self.snd_hover.set_volume(0.2)
+        except Exception:
+            self.snd_hover = None
+            
+        try:
+            self.snd_clic = pygame.mixer.Sound("assets/click.wav")
+            self.snd_clic.set_volume(0.5)
+        except Exception:
+            self.snd_clic = None
+            
+        self.btn_hover_anterior = None # Para rastrear cuando el ratón entra a un botón nuevo
+        
         try:
             self.fuente_grande = pygame.font.Font("assets/font.otf", 24)
             self.fuente_media = pygame.font.Font("assets/font.otf", 18)
-            self.fuente_pequena = pygame.font.Font("assets/font.otf", 14)
+            # Cambiamos fuente_pequena a Consolas para el log para mejor legibilidad estilo terminal/pixel
+            self.fuente_pequena = pygame.font.SysFont("Consolas", 11, bold=True)
+            self.fuente_botones = pygame.font.Font("assets/font.otf", 14)
+            self.fuente_hud_vol = pygame.font.SysFont("Segoe UI", 24, bold=True)
         except Exception:
             self.fuente_grande = pygame.font.SysFont("Segoe UI", 24, bold=True)
             self.fuente_media = pygame.font.SysFont("Segoe UI", 18, bold=True)
-            self.fuente_pequena = pygame.font.SysFont("Consolas", 14)
+            self.fuente_pequena = pygame.font.SysFont("Consolas", 12)
+            self.fuente_botones = pygame.font.SysFont("Segoe UI", 14, bold=True)
+            self.fuente_hud_vol = pygame.font.SysFont("Segoe UI", 24, bold=True)
         
         self.mensajes_log = []
         
@@ -58,8 +78,9 @@ class Interfaz:
             'EXEC_Q': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 500, 150, 35),
             'AUTO_GEN': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 545, 310, 35),
             'REINICIAR': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 590, 310, 35),
-            'VOL_DOWN': pygame.Rect(self.ancho_mapa + 20, self.alto_hud + 635, 150, 35),
-            'VOL_UP': pygame.Rect(self.ancho_mapa + 180, self.alto_hud + 635, 150, 35)
+            'LOGS': pygame.Rect(self.ancho_ventana - 140, 20, 30, 30),
+            'VOL_DOWN': pygame.Rect(self.ancho_ventana - 90, 20, 30, 30),
+            'VOL_UP': pygame.Rect(self.ancho_ventana - 40, 20, 30, 30)
         }
         
         # Cargar sprite de la llama animada
@@ -139,7 +160,7 @@ class Interfaz:
         
     def log(self, mensaje):
         self.mensajes_log.append(mensaje)
-        if len(self.mensajes_log) > 20: # Mantener solo los últimos 20 mensajes
+        if len(self.mensajes_log) > 500: # Aumentado para historial largo
             self.mensajes_log.pop(0)
 
     def dibujar_fondo_cuadricula(self):
@@ -221,39 +242,127 @@ class Interfaz:
         
     def dibujar_hud(self, agente):
         rect_hud = pygame.Rect(0, 0, self.ancho_ventana, self.alto_hud)
-        pygame.draw.rect(self.pantalla, (15, 15, 18), rect_hud) # Fondo HUD muy oscuro
-        pygame.draw.line(self.pantalla, (180, 150, 80), (0, self.alto_hud), (self.ancho_ventana, self.alto_hud), 3) # Línea oro envejecido
+        pygame.draw.rect(self.pantalla, (10, 10, 12), rect_hud) # Fondo HUD muy oscuro, casi negro
+        pygame.draw.line(self.pantalla, (197, 168, 128), (0, self.alto_hud), (self.ancho_ventana, self.alto_hud), 2) # Linea cobre/bronce delgada
         
-        # Barra de Energía (Rediseñada)
-        ancho_barra_max = 200
+        # Barra de Energía (Estilo God of War Auténtico)
+        ancho_barra_max = 250
         ancho_barra_actual = int((agente.energia_actual / agente.energia_maxima) * ancho_barra_max)
-        color_barra = (50, 255, 50) if agente.energia_actual > 30 else (255, 50, 50) # Verde vibrante
         
-        txt_energia = self.fuente_media.render(f"ENERGIA: {agente.energia_actual}/{agente.energia_maxima}", True, (220, 220, 220))
-        self.pantalla.blit(txt_energia, (20, 10))
+        # Verde brillante GoW
+        color_barra = (125, 209, 79) if agente.energia_actual > 30 else (220, 60, 40)
         
-        # Contenedor oscuro y borde grueso
-        rect_fondo_barra = pygame.Rect(20, 35, ancho_barra_max, 15)
-        pygame.draw.rect(self.pantalla, (10, 10, 10), rect_fondo_barra)
+        # Rombo decorativo principal (Base de la barra)
+        centro_rombo = (45, 25)
+        puntos_rombo = [
+            (centro_rombo[0], centro_rombo[1] - 18),
+            (centro_rombo[0] + 18, centro_rombo[1]),
+            (centro_rombo[0], centro_rombo[1] + 18),
+            (centro_rombo[0] - 18, centro_rombo[1])
+        ]
+        pygame.draw.polygon(self.pantalla, (20, 20, 20), puntos_rombo)
+        pygame.draw.polygon(self.pantalla, (197, 168, 128), puntos_rombo, 2) # Bronce/Oro viejo
+        
+        # Emblema dentro del rombo
+        pygame.draw.circle(self.pantalla, (100, 90, 80), centro_rombo, 8, 1)
+        txt_e = self.fuente_botones.render("E", True, (255, 255, 255))
+        self.pantalla.blit(txt_e, txt_e.get_rect(center=centro_rombo))
+        
+        # Fondo de la barra (Más oscuro)
+        rect_fondo = pygame.Rect(70, 18, ancho_barra_max, 14)
+        pygame.draw.rect(self.pantalla, (25, 25, 25), rect_fondo)
+        
+        # Barra interior brillante
         if ancho_barra_actual > 0:
-            pygame.draw.rect(self.pantalla, color_barra, (20, 35, ancho_barra_actual, 15))
-        pygame.draw.rect(self.pantalla, (100, 100, 100), rect_fondo_barra, 2) # Borde grueso gris
+            rect_interior = pygame.Rect(70, 18, ancho_barra_actual, 14)
+            pygame.draw.rect(self.pantalla, color_barra, rect_interior)
+            # Brillo superior para efecto 3D
+            pygame.draw.rect(self.pantalla, (200, 255, 150), (70, 18, ancho_barra_actual, 3))
+            
+        # Marco de la barra con ángulos
+        pygame.draw.line(self.pantalla, (197, 168, 128), (70, 17), (70 + ancho_barra_max, 17), 2)
+        pygame.draw.line(self.pantalla, (197, 168, 128), (70, 32), (70 + ancho_barra_max, 32), 2)
+        # Remate final angular (Punta de la barra)
+        puntos_remate = [
+            (70 + ancho_barra_max, 17),
+            (70 + ancho_barra_max + 10, 24),
+            (70 + ancho_barra_max, 33)
+        ]
+        pygame.draw.polygon(self.pantalla, (10, 10, 12), puntos_remate) # Tapar lo que sobresale
+        pygame.draw.polygon(self.pantalla, (197, 168, 128), puntos_remate, 2)
         
+        # Línea de la interfaz por debajo de la barra para darle base
+        pygame.draw.line(self.pantalla, (60, 55, 50), (45, 42), (70 + ancho_barra_max + 15, 42), 1)
+
+        # Texto debajo de la barra
+        txt_energia = self.fuente_botones.render(f"ENERGIA {agente.energia_actual}/{agente.energia_maxima}", True, (160, 160, 160))
+        self.pantalla.blit(txt_energia, (75, 45))
+        
+        # ----------------------------------------------------
         # Rescatados
-        txt_rescatados = self.fuente_media.render(f"RESCATADOS: {agente.humanos_rescatados}", True, (255, 200, 50))
-        self.pantalla.blit(txt_rescatados, (350, 20))
+        # ----------------------------------------------------
+        centro_r = (380, 25)
+        puntos_r = [
+            (centro_r[0], centro_r[1] - 15),
+            (centro_r[0] + 15, centro_r[1]),
+            (centro_r[0], centro_r[1] + 15),
+            (centro_r[0] - 15, centro_r[1])
+        ]
+        pygame.draw.polygon(self.pantalla, (20, 20, 20), puntos_r)
+        pygame.draw.polygon(self.pantalla, (100, 150, 220), puntos_r, 2) # Azul pálido / Plata
+        
+        pygame.draw.circle(self.pantalla, (80, 100, 120), centro_r, 6, 1)
+        txt_r = self.fuente_botones.render("R", True, (255, 255, 255))
+        self.pantalla.blit(txt_r, txt_r.get_rect(center=(centro_r[0]+1, centro_r[1])))
+        
+        txt_rescatados = self.fuente_media.render(f"RESCATADOS: {agente.humanos_rescatados}", True, (220, 220, 220))
+        self.pantalla.blit(txt_rescatados, (405, 15))
+        pygame.draw.line(self.pantalla, (60, 55, 50), (380, 42), (540, 42), 1)
         
         # Estado (Cargando humano)
         if agente.cargando_humano:
-            txt_cargando = self.fuente_media.render("🎒 LLEVANDO AL HOSPITAL", True, (50, 200, 255))
-            self.pantalla.blit(txt_cargando, (550, 20))
+            txt_cargando = self.fuente_media.render("LLEVANDO AL HOSPITAL", True, (100, 150, 220))
+            self.pantalla.blit(txt_cargando, (560, 15))
+            pygame.draw.line(self.pantalla, (60, 55, 50), (560, 42), (750, 42), 1)
+            
+        # Botones de opciones en el HUD (Forma de rombo)
+        for key in ['LOGS', 'VOL_DOWN', 'VOL_UP']:
+            rect = self.botones_ui[key]
+            hover = rect.collidepoint(pygame.mouse.get_pos())
+            
+            # Sonido
+            if hover and self.btn_hover_anterior != key:
+                if getattr(self, 'snd_hover', None):
+                    self.snd_hover.play()
+                self.btn_hover_anterior = key
+            
+            color_bg = (30, 28, 25) if not hover else (60, 50, 40)
+            color_borde = (120, 110, 100) if not hover else (197, 168, 128)
+            
+            cx, cy = rect.center
+            puntos_vol = [
+                (cx, cy - 14),
+                (cx + 14, cy),
+                (cx, cy + 14),
+                (cx - 14, cy)
+            ]
+            pygame.draw.polygon(self.pantalla, color_bg, puntos_vol)
+            pygame.draw.polygon(self.pantalla, color_borde, puntos_vol, 2)
+            
+            texto = ""
+            if key == 'VOL_DOWN': texto = "-"
+            elif key == 'VOL_UP': texto = "+"
+            elif key == 'LOGS': texto = "L"
+            
+            txt = self.fuente_hud_vol.render(texto, True, (255, 255, 255))
+            self.pantalla.blit(txt, txt.get_rect(center=(cx, cy - 2)))
 
     def dibujar_panel_registro(self):
         rect_panel = pygame.Rect(self.ancho_mapa, self.alto_hud, self.ancho_panel, self.alto_ventana - self.alto_hud)
         pygame.draw.rect(self.pantalla, COLOR_FONDO_PANEL, rect_panel)
-        pygame.draw.line(self.pantalla, (100, 100, 100), (self.ancho_mapa, self.alto_hud), (self.ancho_mapa, self.alto_ventana), 2)
+        pygame.draw.line(self.pantalla, (197, 168, 128), (self.ancho_mapa, self.alto_hud), (self.ancho_mapa, self.alto_ventana), 2)
         
-        titulo = self.fuente_grande.render("LOG DE ACCIONES", True, COLOR_TEXTO)
+        titulo = self.fuente_grande.render("LOG DE ACCIONES", True, (197, 168, 128))
         self.pantalla.blit(titulo, (self.ancho_mapa + 20, self.alto_hud + 20))
         
         y = self.alto_hud + 60
@@ -272,6 +381,7 @@ class Interfaz:
             'EXEC_Q': (200, 100, 100),
             'AUTO_GEN': (100, 160, 100),
             'REINICIAR': (80, 80, 80),
+            'LOGS': (100, 100, 100),
             'VOL_DOWN': (60, 80, 100),
             'VOL_UP': (60, 80, 100)
         }
@@ -284,20 +394,79 @@ class Interfaz:
             'EXEC_Q': "Ejecutar Q",
             'AUTO_GEN': "Generar Mapa Aleatorio",
             'REINICIAR': "Reiniciar Juego",
+            'LOGS': "Ver Logs",
             'VOL_DOWN': "Volumen -",
             'VOL_UP': "Volumen +"
         }
         
         for key, rect in self.botones_ui.items():
-            # Efecto hover simple (si el mouse está encima)
-            color = colores_btn[key]
-            if rect.collidepoint(pygame.mouse.get_pos()):
-                color = (min(color[0]+30, 255), min(color[1]+30, 255), min(color[2]+30, 255))
+            if key in ['LOGS', 'VOL_DOWN', 'VOL_UP']:
+                continue # Los dibujamos en el HUD
                 
-            pygame.draw.rect(self.pantalla, color, rect, border_radius=5)
-            pygame.draw.rect(self.pantalla, (200, 200, 200), rect, 1, border_radius=5)
+            hover = rect.collidepoint(pygame.mouse.get_pos())
             
-            txt = self.fuente_pequena.render(textos_btn[key], True, (255,255,255))
+            # Sonido de hover
+            if hover and self.btn_hover_anterior != key:
+                if getattr(self, 'snd_hover', None):
+                    self.snd_hover.play()
+                self.btn_hover_anterior = key
+            elif not hover and self.btn_hover_anterior == key:
+                self.btn_hover_anterior = None
+                
+            # Colores base estilo GOW (Marrón oscuro, grises, cobres)
+            # Aplicar sutiles tintes rojo, verde y azul para diferenciar grupos
+            if key in ['A_STAR', 'BFS', 'COMPARAR']:
+                # Tinte Azul pálido (Hielo/Magia)
+                color_fondo = (20, 25, 35) if not hover else (35, 45, 60)
+                color_borde = (100, 130, 160) if not hover else (150, 190, 230)
+            elif key in ['TRAIN_Q', 'EXEC_Q']:
+                # Tinte Rojo oscuro (Furia/Sangre)
+                color_fondo = (35, 20, 20) if not hover else (60, 30, 30)
+                color_borde = (160, 80, 80) if not hover else (220, 100, 100)
+            elif key in ['AUTO_GEN', 'REINICIAR']:
+                # Tinte Verde oscuro (Vida/Tierra)
+                color_fondo = (20, 30, 20) if not hover else (35, 50, 35)
+                color_borde = (90, 140, 90) if not hover else (140, 200, 140)
+            else:
+                color_fondo = (30, 28, 25) if not hover else (50, 46, 40)
+                color_borde = (120, 110, 100) if not hover else (197, 168, 128)
+            
+            if key == 'TOGGLE_SIM':
+                color_fondo = (40, 35, 20) if not hover else (60, 50, 25)
+                color_borde = (197, 168, 128) if not hover else (255, 230, 150)
+                
+            # Fondo del botón
+            pygame.draw.rect(self.pantalla, color_fondo, rect)
+            
+            # Borde principal (Fino y afilado)
+            pygame.draw.rect(self.pantalla, color_borde, rect, 1)
+            
+            # Detalles de esquinas (Cruces/runas para aspecto épico)
+            longitud_esquina = 6
+            # Superior izquierda
+            pygame.draw.line(self.pantalla, color_borde, rect.topleft, (rect.left + longitud_esquina, rect.top), 2)
+            pygame.draw.line(self.pantalla, color_borde, rect.topleft, (rect.left, rect.top + longitud_esquina), 2)
+            # Superior derecha
+            pygame.draw.line(self.pantalla, color_borde, rect.topright, (rect.right - longitud_esquina, rect.top), 2)
+            pygame.draw.line(self.pantalla, color_borde, rect.topright, (rect.right, rect.top + longitud_esquina), 2)
+            # Inferior izquierda
+            pygame.draw.line(self.pantalla, color_borde, rect.bottomleft, (rect.left + longitud_esquina, rect.bottom), 2)
+            pygame.draw.line(self.pantalla, color_borde, rect.bottomleft, (rect.left, rect.bottom - longitud_esquina), 2)
+            # Inferior derecha
+            pygame.draw.line(self.pantalla, color_borde, rect.bottomright, (rect.right - longitud_esquina, rect.bottom), 2)
+            pygame.draw.line(self.pantalla, color_borde, rect.bottomright, (rect.right, rect.bottom - longitud_esquina), 2)
+            
+            # Sombra del texto (Drop shadow)
+            txt_sombra = self.fuente_botones.render(textos_btn[key], True, (0, 0, 0))
+            txt_rect_sombra = txt_sombra.get_rect(center=(rect.centerx + 1, rect.centery + 1))
+            self.pantalla.blit(txt_sombra, txt_rect_sombra)
+            
+            # Texto principal
+            color_txt = (200, 200, 200) if not hover else (255, 255, 255)
+            if key == 'TOGGLE_SIM':
+                color_txt = (240, 220, 180) if not hover else (255, 255, 255)
+                
+            txt = self.fuente_botones.render(textos_btn[key], True, color_txt)
             txt_rect = txt.get_rect(center=rect.center)
             self.pantalla.blit(txt, txt_rect)
             
@@ -343,20 +512,26 @@ class Interfaz:
         s.fill((0, 0, 0))
         self.pantalla.blit(s, (0, 0))
         
-        rect_popup = pygame.Rect(0, 0, 500, 200)
+        rect_popup = pygame.Rect(0, 0, 550, 200) # Un poco más ancho para que quepa bien el texto de Consolas
         rect_popup.center = (self.ancho_ventana//2, self.alto_ventana//2)
         pygame.draw.rect(self.pantalla, (40, 40, 45), rect_popup, border_radius=10)
-        pygame.draw.rect(self.pantalla, (200, 200, 200), rect_popup, 2, border_radius=10)
+        pygame.draw.rect(self.pantalla, (197, 168, 128), rect_popup, 2, border_radius=10) # Borde color GOW
         
         txt_titulo = self.fuente_grande.render(titulo, True, (255, 200, 50))
         rect_titulo = txt_titulo.get_rect(center=(rect_popup.centerx, rect_popup.top + 40))
         self.pantalla.blit(txt_titulo, rect_titulo)
         
-        txt_msg = self.fuente_media.render(mensaje, True, (255, 255, 255))
+        # Usamos Consolas (fuente_pequena o una media similar) pero mas grande
+        try:
+            fuente_popup_msg = pygame.font.SysFont("Consolas", 14, bold=True)
+        except:
+            fuente_popup_msg = self.fuente_pequena
+            
+        txt_msg = fuente_popup_msg.render(mensaje, True, (255, 255, 255))
         rect_msg = txt_msg.get_rect(center=(rect_popup.centerx, rect_popup.centery + 10))
         self.pantalla.blit(txt_msg, rect_msg)
         
-        txt_btn = self.fuente_pequena.render("Haz clic o presiona Enter para continuar", True, (150, 150, 150))
+        txt_btn = self.fuente_botones.render("Haz clic o presiona Enter para continuar", True, (150, 150, 150))
         rect_btn = txt_btn.get_rect(center=(rect_popup.centerx, rect_popup.bottom - 30))
         self.pantalla.blit(txt_btn, rect_btn)
 
@@ -402,10 +577,11 @@ class Interfaz:
             self.entorno.agregar_celda(fila, col, self.herramienta_actual)
             return "MAPA"
             
-        # Clic en botones UI
-        elif x >= self.ancho_mapa:
-            for key, rect in self.botones_ui.items():
-                if rect.collidepoint(pos):
-                    return key
+        # Clic en botones UI o HUD
+        for key, rect in self.botones_ui.items():
+            if rect.collidepoint(pos):
+                if getattr(self, 'snd_clic', None):
+                    self.snd_clic.play()
+                return key
                     
         return None

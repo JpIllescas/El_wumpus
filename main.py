@@ -94,10 +94,12 @@ def main():
     ESTADO_JUEGO = 2
     ESTADO_PAUSA = 3
     ESTADO_POPUP = 4
+    ESTADO_LOGS = 5
     
     estado_actual = ESTADO_INTRO
     opcion_menu_seleccionada = 0
     opcion_pausa_seleccionada = 0
+    log_scroll_y = 0
     popup_titulo = ""
     popup_mensaje = ""
     
@@ -106,6 +108,8 @@ def main():
     intro_alpha_2 = 0
     intro_fase = 0 # 0: FadeIn 1, 1: FadeOut 1, 2: FadeIn 2, 3: FadeOut 2
     intro_tiempo_inicio = pygame.time.get_ticks()
+    
+    tiempo_b_presionado = 0
     
     try:
         img_umg_logo_orig = pygame.image.load("assets/umg.png").convert_alpha()
@@ -151,8 +155,7 @@ def main():
                 ejecutando = False
                 
             if estado_actual == ESTADO_INTRO:
-                if evento.type in [pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN]:
-                    estado_actual = ESTADO_MENU
+                pass # La lógica de saltar la intro ahora está fuera del loop de eventos
             
             elif estado_actual == ESTADO_MENU:
                 if evento.type == pygame.KEYDOWN:
@@ -243,6 +246,16 @@ def main():
                                 popup_mensaje = f"A*: {n_astar} nodos, {t_astar}s | BFS: {n_bfs} nodos, {t_bfs}s"
                             else:
                                 interfaz.log("Error: No hay humanos en el mapa para comparar.")
+                        
+                        elif accion == 'LOGS':
+                            estado_actual = ESTADO_LOGS
+                            # Calcular max scroll para iniciar en la parte de abajo (los más recientes)
+                            total_alto = len(interfaz.mensajes_log) * 25
+                            espacio_visible = interfaz.alto_ventana - 200
+                            if total_alto > espacio_visible:
+                                log_scroll_y = -(total_alto - espacio_visible)
+                            else:
+                                log_scroll_y = 0
                         
                         elif accion == 'A_STAR':
                             algoritmo_activo = "A_STAR"
@@ -352,6 +365,15 @@ def main():
                                 ejecutando = False
                         y_opcion += 60
                         
+            elif estado_actual == ESTADO_LOGS:
+                if evento.type == pygame.KEYDOWN and evento.key in [pygame.K_RETURN, pygame.K_ESCAPE]:
+                    estado_actual = ESTADO_JUEGO
+                elif evento.type == pygame.MOUSEWHEEL:
+                    log_scroll_y += evento.y * 20
+                elif evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
+                    # Cerrar logs si da clic derecho en pantalla (o boton de cerrar virtual)
+                    estado_actual = ESTADO_JUEGO
+
             elif estado_actual == ESTADO_POPUP:
                 if evento.type == pygame.KEYDOWN and evento.key in [pygame.K_RETURN, pygame.K_ESCAPE]:
                     estado_actual = ESTADO_JUEGO
@@ -466,8 +488,28 @@ def main():
             except:
                 fuente_peq = interfaz.fuente_pequena
                 
-            txt_skip = fuente_peq.render("Presiona cualquier tecla para saltar", True, (80, 80, 80))
-            interfaz.pantalla.blit(txt_skip, (20, interfaz.alto_ventana - 30))
+            # --- Lógica de mantener presionado B para saltar intro ---
+            teclas_presionadas = pygame.key.get_pressed()
+            tiempo_necesario_skip = 1000 # 1 segundo (1000ms)
+            
+            if teclas_presionadas[pygame.K_b]:
+                # Incrementamos tiempo basado en el delta time del reloj (aprox 16ms a 60fps)
+                tiempo_b_presionado += reloj.get_time() 
+            else:
+                tiempo_b_presionado = 0
+                
+            if tiempo_b_presionado >= tiempo_necesario_skip:
+                estado_actual = ESTADO_MENU
+            
+            txt_skip = fuente_peq.render("Manten presionado B para saltar", True, (150, 150, 150))
+            interfaz.pantalla.blit(txt_skip, (20, interfaz.alto_ventana - 40))
+            
+            if tiempo_b_presionado > 0:
+                # Dibujar barrita de progreso al lado del texto
+                largo_barra_max = 100
+                largo_actual = int((tiempo_b_presionado / tiempo_necesario_skip) * largo_barra_max)
+                rect_barra = pygame.Rect(20, interfaz.alto_ventana - 15, largo_actual, 2)
+                pygame.draw.rect(interfaz.pantalla, (255, 255, 255), rect_barra)
             
             pygame.display.flip()
             
@@ -625,6 +667,56 @@ def main():
         elif estado_actual == ESTADO_POPUP:
             interfaz.dibujar_todo(agente, agente_visual_x, agente_visual_y, auto_flip=False)
             interfaz.dibujar_popup(popup_titulo, popup_mensaje)
+            pygame.display.flip()
+            
+        elif estado_actual == ESTADO_LOGS:
+            interfaz.dibujar_todo(agente, agente_visual_x, agente_visual_y, auto_flip=False)
+            
+            # Dibujar panel de logs superpuesto
+            s = pygame.Surface((interfaz.ancho_ventana, interfaz.alto_ventana))
+            s.set_alpha(200)
+            s.fill((10, 10, 12))
+            interfaz.pantalla.blit(s, (0, 0))
+            
+            # Contenedor central
+            rect_logs = pygame.Rect(50, 50, interfaz.ancho_ventana - 100, interfaz.alto_ventana - 100)
+            pygame.draw.rect(interfaz.pantalla, (20, 20, 25), rect_logs)
+            pygame.draw.rect(interfaz.pantalla, (197, 168, 128), rect_logs, 2)
+            
+            titulo = interfaz.fuente_grande.render("HISTORIAL DE LOGS COMPLETOS", True, (197, 168, 128))
+            interfaz.pantalla.blit(titulo, (70, 70))
+            pygame.draw.line(interfaz.pantalla, (100, 100, 100), (70, 105), (interfaz.ancho_ventana - 70, 105), 1)
+            
+            # Dibujar mensajes con scroll
+            y_base = 120 + log_scroll_y
+            total_items = len(interfaz.mensajes_log)
+            
+            for i, msg in enumerate(interfaz.mensajes_log): # Orden normal (antiguos arriba, nuevos abajo)
+                y_msg = y_base + (i * 25)
+                if y_msg > 110 and y_msg < interfaz.alto_ventana - 70:
+                    texto = interfaz.fuente_pequena.render(msg, True, (200, 200, 200))
+                    interfaz.pantalla.blit(texto, (70, y_msg))
+                    
+            # Limitar scroll
+            total_alto = total_items * 25
+            espacio_visible = interfaz.alto_ventana - 200
+            
+            # No permitir scrollear más abajo del final ni más arriba del inicio
+            if total_alto <= espacio_visible:
+                log_scroll_y = 0 # Si todo cabe, no hay scroll
+            else:
+                max_scroll_arriba = 0 # Top limit
+                max_scroll_abajo = -(total_alto - espacio_visible) # Bottom limit
+                
+                if log_scroll_y > max_scroll_arriba: 
+                    log_scroll_y = max_scroll_arriba
+                if log_scroll_y < max_scroll_abajo: 
+                    log_scroll_y = max_scroll_abajo
+            
+            txt_btn = interfaz.fuente_media.render("Presiona ESC o Clic para volver", True, (150, 150, 150))
+            rect_btn = txt_btn.get_rect(center=(interfaz.ancho_ventana//2, interfaz.alto_ventana - 35))
+            interfaz.pantalla.blit(txt_btn, rect_btn)
+            
             pygame.display.flip()
         
         reloj.tick(60)

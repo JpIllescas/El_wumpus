@@ -377,11 +377,29 @@ def main():
             elif estado_actual == ESTADO_POPUP:
                 if evento.type == pygame.KEYDOWN and evento.key in [pygame.K_RETURN, pygame.K_ESCAPE]:
                     estado_actual = ESTADO_JUEGO
-                    if popup_titulo in ["GAME OVER", "¡VICTORIA!"]:
+                    if popup_titulo == "GAME OVER":
+                        agente.fila = 0
+                        agente.columna = 0
+                        agente.energia_actual = agente.energia_maxima
+                        agente.ruta_actual = []
+                        agente.cargando_humano = False
+                        agente_visual_x = 0
+                        agente_visual_y = 0
+                        interfaz.simulacion_activa = False
+                    elif popup_titulo == "¡VICTORIA!":
                         interfaz.simulacion_activa = False
                 elif evento.type == pygame.MOUSEBUTTONDOWN:
                     estado_actual = ESTADO_JUEGO
-                    if popup_titulo in ["GAME OVER", "¡VICTORIA!"]:
+                    if popup_titulo == "GAME OVER":
+                        agente.fila = 0
+                        agente.columna = 0
+                        agente.energia_actual = agente.energia_maxima
+                        agente.ruta_actual = []
+                        agente.cargando_humano = False
+                        agente_visual_x = 0
+                        agente_visual_y = 0
+                        interfaz.simulacion_activa = False
+                    elif popup_titulo == "¡VICTORIA!":
                         interfaz.simulacion_activa = False
                     
         if estado_actual == ESTADO_INTRO:

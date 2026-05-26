@@ -1,0 +1,4 @@
+([('RescueAgentOllama',
+   '/Users/sebastianholweger/Desktop/Universidad/Tareas/9no Ciclo/Inteligencia '
+   'Artificial/Proyecto Final/El_wumpus/dist/RescueAgentOllama',
+   'EXECUTABLE')],)
